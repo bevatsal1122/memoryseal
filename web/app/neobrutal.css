@@ -801,6 +801,13 @@ a {
   width: 100%;
   min-width: 0;
 }
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--ink);
+  outline: none;
+  box-shadow: none;
+}
 .workspace input::placeholder,
 .workspace textarea::placeholder {
   color: #767b71;

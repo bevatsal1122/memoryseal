@@ -167,9 +167,6 @@ export default function Landing({ busy, error, onConnect }) {
       <section className="launch-section" id="features">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">
-              ONE MEMORY PROTOCOL. CLEAR BOUNDARIES.
-            </span>
             <h2>
               Everything has
               <br />
