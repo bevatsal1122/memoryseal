@@ -234,9 +234,6 @@ a {
   padding-bottom: 16px;
   margin-bottom: 25px;
 }
-.map-caption > span:last-child {
-  font-size: 23px;
-}
 .map-agent {
   display: flex;
   align-items: center;

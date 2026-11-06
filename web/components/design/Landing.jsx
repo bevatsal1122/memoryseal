@@ -100,9 +100,6 @@ export default function Landing({ busy, error, onConnect }) {
               See how it works <span aria-hidden="true">↓</span>
             </a>
           </div>
-          <p className="connection-note">
-            Connect an EVM wallet. Review requests before signing.
-          </p>
         </div>
         <div
           className="memory-map"
@@ -110,7 +107,6 @@ export default function Landing({ busy, error, onConnect }) {
         >
           <div className="map-caption">
             <span>THE MEMORY PROTOCOL</span>
-            <span aria-hidden="true">✳</span>
           </div>
           <div className="map-agent">
             <span className="avatar lavender">⌘</span>
@@ -126,7 +122,6 @@ export default function Landing({ busy, error, onConnect }) {
           <div className="map-policy">
             <BrandMark />
             <div>
-              <small>YOUR WORKSPACE</small>
               <b>MemorySeal</b>
               <p>Identity → Permission → Review</p>
             </div>
@@ -212,10 +207,6 @@ export default function Landing({ busy, error, onConnect }) {
               Stay in control.
             </h2>
           </div>
-          <p>
-            Choose ordinary memories for review and analysis, or the encrypted
-            vault when content should stay on your device.
-          </p>
         </div>
         <ol className="workflow-steps">
           <li>
@@ -258,7 +249,6 @@ export default function Landing({ busy, error, onConnect }) {
       <footer className="launch-footer">
         <Brand />
         <p>The memory protocol for multi-agent systems.</p>
-        <a href="#landing-content">Back to top ↑</a>
       </footer>
     </div>
   );
