@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.db
+.env
+*.egg-info/
+node_modules/
+.next/
+contracts/artifacts/
+
+.venv-*/
+
+.demo.env
+.ens-demo-registration.json

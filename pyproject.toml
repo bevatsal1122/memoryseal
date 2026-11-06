@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "memoryseal"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.30,<1",
+  "sqlalchemy>=2.0,<3",
+  "cryptography>=43,<47",
+  "eth-account>=0.13,<1",
+  "pydantic-settings>=2.6,<3",
+  "httpx>=0.27,<1",
+]
+
+[project.optional-dependencies]
+dev = ["httpx>=0.27,<1", "pytest>=8,<10", "ruff>=0.8,<1"]
+contract-test = ["eth-tester[py-evm]>=0.13.0b1,<0.14"]
+langgraph = ["langgraph>=1,<2"]
+bridge-verification = ["pyhpke==0.6.5"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

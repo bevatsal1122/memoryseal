@@ -1,0 +1,13 @@
+{"step":"preconditions","name":"memoryseal-beryllium-affbced4.eth","registrar":"0xf633e7fc17e2bbe0d0965d18ec1821dcb754a3d3","paymentToken":"0x240b0316df57887dbbe58b586508b19e633a14aa","base":"8000021","premium":"0","minCommitmentAge":"60","commitment":"0x49f4e5be4db1c9db3a6f97cc720dfea245ddfe29c895b985bcc8475703abb9be"}
+{"step":"signed","label":"mint-test-usdc","hash":"0xdee08beddffff583964a4a7fc1d5b4fff3c70e5a150172ad69b9e1af452f3acf","nonce":6}
+{"step":"receipt","label":"mint-test-usdc","hash":"0xdee08beddffff583964a4a7fc1d5b4fff3c70e5a150172ad69b9e1af452f3acf","status":1,"block":12074015}
+{"step":"signed","label":"approve-test-usdc","hash":"0x385b4be96abebd466f92561266e7320db320f56d19dd12ca4853595d66f660c7","nonce":7}
+{"step":"receipt","label":"approve-test-usdc","hash":"0x385b4be96abebd466f92561266e7320db320f56d19dd12ca4853595d66f660c7","status":1,"block":12074016}
+{"step":"signed","label":"commit","hash":"0x0032a044e3ac9b36bc518bf878fa6bb200f49a5e2e86e598a579d7f142a0456d","nonce":8}
+{"step":"receipt","label":"commit","hash":"0x0032a044e3ac9b36bc518bf878fa6bb200f49a5e2e86e598a579d7f142a0456d","status":1,"block":12074017}
+{"step":"committed","name":"memoryseal-beryllium-affbced4.eth","commitment":"0x49f4e5be4db1c9db3a6f97cc720dfea245ddfe29c895b985bcc8475703abb9be"}
+{"step":"waiting_for_commitment","age":"24","min":"60"}
+{"step":"waiting_for_commitment","age":"48","min":"60"}
+{"step":"signed","label":"register","name":"memoryseal-beryllium-affbced4.eth","hash":"0x9e1f6fcbaea610fc054498ece74ed3e8f67fd621f1a1f1dd41bf5f671c9e6414","nonce":9,"gasLimit":"842094"}
+{"step":"receipt","label":"register","hash":"0x9e1f6fcbaea610fc054498ece74ed3e8f67fd621f1a1f1dd41bf5f671c9e6414","status":1,"block":12074023}
+{"step":"registered","name":"memoryseal-beryllium-affbced4.eth","owner":"0x4cb3703283CfE00bdE4012D85b9C74f5e753A727","subregistry":"0x0000000000000000000000000000000000000000","resolver":"0x0000000000000000000000000000000000000000"}

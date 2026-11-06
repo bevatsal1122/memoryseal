@@ -1,0 +1,7 @@
+{
+  "name": "memoryseal-arkiv",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node --test test/*.test.mjs"},
+  "dependencies": {"@arkiv-network/sdk": "1.0.1", "viem": "^2.0.0"}
+}

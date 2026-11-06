@@ -1,0 +1,19 @@
+{"step":"deployment_signed","contract":"MemoryPolicyRegistry","chainId":"11155111","address":"0xcC79334441497eA501CaB95E2D3B2F7c52c74437","transaction":"0x019758f7710c543c7144e71b0486391e99b63594b4113efeb5d2256847d95fa9","nonce":0}
+{"step":"registry_deployed","chainId":"11155111","address":"0xcC79334441497eA501CaB95E2D3B2F7c52c74437","transaction":"0x019758f7710c543c7144e71b0486391e99b63594b4113efeb5d2256847d95fa9"}
+{"step":"deployment_signed","contract":"ProtectedTransfer","chainId":"11155111","address":"0x46065CA936c7813bD2D560F0CE7C7a25A38d05Ec","transaction":"0x2c50dd15f992b0d079090c08896c0e7bf1ae3f4f451b5824b4cb26e20db7d08b","nonce":1}
+{"step":"deployment_signed","contract":"TestToken","chainId":"11155111","address":"0x6988ec52814125689586C8f2C62F93993CE82E3B","transaction":"0x1af583fb01057ef53137d8f411602fecf8f4943537e0e6e2a9486570c54e11f5","nonce":2}
+{
+  "chainId": "11155111",
+  "registry": {
+    "address": "0xcC79334441497eA501CaB95E2D3B2F7c52c74437",
+    "transaction": "0x019758f7710c543c7144e71b0486391e99b63594b4113efeb5d2256847d95fa9"
+  },
+  "executor": {
+    "address": "0x46065CA936c7813bD2D560F0CE7C7a25A38d05Ec",
+    "transaction": "0x2c50dd15f992b0d079090c08896c0e7bf1ae3f4f451b5824b4cb26e20db7d08b"
+  },
+  "testToken": {
+    "address": "0x6988ec52814125689586C8f2C62F93993CE82E3B",
+    "transaction": "0x1af583fb01057ef53137d8f411602fecf8f4943537e0e6e2a9486570c54e11f5"
+  }
+}
