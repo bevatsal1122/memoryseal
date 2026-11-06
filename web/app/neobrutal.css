@@ -207,10 +207,20 @@ a {
   margin-top: 32px;
 }
 .launch-actions > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
   font-weight: 700;
   font-size: 13px;
-  text-decoration: underline;
-  text-underline-offset: 5px;
+  line-height: 1.4;
+  padding-bottom: 4px;
+  border-bottom: 1px solid currentColor;
+  text-decoration: none;
+}
+.launch-actions > a > span {
+  flex-shrink: 0;
+  font-size: 18px;
+  line-height: 1;
 }
 .launch-copy .connection-note {
   font: 12px/1.7 monospace;
@@ -223,7 +233,6 @@ a {
   border: 2px solid;
   box-shadow: 8px 8px 0 var(--ink);
   padding: 24px;
-  transform: rotate(1deg);
 }
 .map-caption {
   display: flex;

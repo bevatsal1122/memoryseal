@@ -1,6 +1,6 @@
 # Deploy the MemorySeal gateway on Railway
 
-The Vercel website remains at `https://sealmemory.vercel.app`. Railway runs the Python gateway. This repository now contains a backend `Dockerfile`, `railway.toml`, a restricted Docker build context, and a startup script.
+The public frontend is `https://memoryseal.work` (hosted on Vercel). Railway runs the Python gateway. This repository now contains a backend `Dockerfile`, `railway.toml`, a restricted Docker build context, and a startup script.
 
 ## 1. Publish the deployment files
 
@@ -19,7 +19,7 @@ The startup script refuses Railway startup without a volume or with a database o
 ```text
 MEMORYSEAL_DATABASE_URL=sqlite:////data/memoryseal.db
 MEMORYSEAL_REQUEST_AUDIENCE=memoryseal-local
-MEMORYSEAL_DASHBOARD_ORIGINS=https://sealmemory.vercel.app
+MEMORYSEAL_DASHBOARD_ORIGINS=https://memoryseal.work,https://www.memoryseal.work
 MEMORYSEAL_ENCRYPTION_KEY=<your base64-encoded 32-byte encryption key>
 ```
 
@@ -92,3 +92,14 @@ A fresh Railway volume starts an **empty workspace**, even with the same owner w
 The local Docker daemon was unavailable during preparation, so the container image still needs its first Railway build. No Railway service was created or billed by these repository changes.
 
 Sources: [Railway Dockerfiles](https://docs.railway.com/builds/dockerfiles), [volumes](https://docs.railway.com/volumes), [configuration as code](https://docs.railway.com/config-as-code/reference), [health checks](https://docs.railway.com/deployments/healthchecks).
+
+
+## November 6 live integration setup
+
+The missing ENS, Sepolia observer and Arkiv publisher variables were transferred using the local, gitignored `.env.railway-integrations` file. This file contains a private publisher key: do not commit, share or paste it into chat. Import only its integration entries into Railway; preserve the deployed database URL, encryption key, dashboard origin, audience and 0G configuration.
+
+The deployed readiness endpoint confirmed all integration configuration flags. Live 0GM classification, quarantine, denied reads and revoked writes passed. Arkiv publication and independent record observation passed. The existing Thirdweb Sepolia endpoint worked locally but the Railway contract and ENS observations failed; PublicNode was checked locally as a replacement at `https://ethereum-sepolia-rpc.publicnode.com`. After changing both Railway RPC variables, the live ENS and contract observations passed; both runtime bytecodes matched the local artifacts. Configuration presence alone is not service readiness.
+
+The ENS parent and deployed contracts are shared testnet infrastructure; the owner's local registrations and permissions are not automatically imported into Railway. Users still register agents and grant their own capabilities in their connected-wallet workspace. Onchain transactions require the appropriate wallet, chain, gas and token allowance. No new chain or real-money deployment is implied by configuring the Sepolia observer.
+
+The apex domain redirects to `https://www.memoryseal.work/`. Both origins must be listed explicitly in `MEMORYSEAL_DASHBOARD_ORIGINS`; allowing the apex alone does not allow the redirected website.

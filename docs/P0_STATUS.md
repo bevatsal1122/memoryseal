@@ -55,3 +55,10 @@ The latest Python suite passed with 243 passed and 6 skipped after the local pol
 3. Reconcile the uncertain Arkiv acknowledgement without blindly resubmitting it, then publish/query the complete demo's provenance. Verify the dashboard with a real wallet and check additional agent ENS delegation as required.
 4. Run and inspect the complete attack workflow with real 0G inference and a protected test-token transaction. The configured RPC observed a new owner-signed 100-token onchain limit at block 12074867; recheck it before an over-limit attempt. The executor allowance was zero at the preceding check, so a new approval is needed for the eventual successful action. An explicit gas limit alone does not guarantee a revert. Verify the UI and wallet events in a browser.
 5. Re-run the security checks against the configured system, document transaction and request references without secrets, and complete a requirement-by-requirement audit before calling P0 complete.
+
+
+## Live deployment validation on November 6, 2026
+
+Website: `https://www.memoryseal.work/` (apex redirects here). Railway permits both exact frontend origins. Live API/SDK checks passed single-login dashboard reads, logout/revoked-token rejection, 0GM router-default classification, quarantine and revoked-write enforcement, ENS resolution, Sepolia registry/executor runtime comparisons, Arkiv publication and matching observation, organization isolation, client-encrypted vault sharing and online key rotation. Synthetic records persisted across backend redeployment. Details and transaction IDs are in [BUILD_RECORD.md](BUILD_RECORD.md).
+
+This is functional integration readiness, not independently verified private inference or a production security audit. Ordinary inference remains unverified and quarantined; client-held vault release is a separate owner-reviewed path. The browser-wallet transaction walkthrough, user-specific agent setup and token approvals remain user actions. Only Sepolia chain infrastructure was verified; additional chains require separate deployments/configuration. No real-value transfers were performed.

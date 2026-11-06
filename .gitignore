@@ -15,3 +15,5 @@ contracts/artifacts/
 .ens-demo-registration.json
 
 sdk/typescript/dist/
+
+.env.railway-integrations
