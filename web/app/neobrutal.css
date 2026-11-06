@@ -72,8 +72,10 @@ a {
   white-space: nowrap;
 }
 .brand-mark {
-  background: var(--lime);
-  border: 2px solid var(--ink);
+  display: block;
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
   color: var(--ink);
   border-radius: 0;
   width: 36px;
@@ -282,9 +284,9 @@ a {
   box-shadow: 4px 4px 0 var(--ink);
   padding: 22px 18px;
 }
-.map-policy > span:first-child {
-  font-size: 48px;
-  line-height: 1;
+.map-policy > .brand-mark {
+  width: 48px;
+  height: 48px;
 }
 .map-policy small {
   font: 9px monospace;
@@ -1046,8 +1048,9 @@ a {
   .map-policy b {
     font-size: 25px;
   }
-  .map-policy > span:first-child {
-    font-size: 36px;
+  .map-policy > .brand-mark {
+    width: 36px;
+    height: 36px;
   }
   .map-caption {
     font-size: 9px;

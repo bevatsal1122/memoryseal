@@ -95,3 +95,7 @@ Vault plaintext stays in the client and is not sent to the server's 0G classifie
 ### Frontend design and navigation
 
 See [the frontend guide](docs/FRONTEND_DESIGN.md) for the neobrutalist design system, workspace navigation, focused agent/integration tasks, and responsive acceptance checks.
+
+### Railway gateway hosting
+
+Use the repository-root Dockerfile and a `/data` volume for the backend. Follow [the Railway deployment guide](docs/RAILWAY_DEPLOYMENT.md) to configure the gateway and connect the Vercel website. The hosted database is separate from your laptop's database unless you explicitly migrate it.

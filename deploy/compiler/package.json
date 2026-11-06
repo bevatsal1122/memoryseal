@@ -1,0 +1,8 @@
+{
+  "name": "memoryseal-deployment-compiler",
+  "private": true,
+  "dependencies": {
+    "@openzeppelin/contracts": "5.4.0",
+    "solc": "0.8.30"
+  }
+}

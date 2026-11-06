@@ -1,3 +1,7 @@
+import Brand, { BrandMark } from "./Brand";
+
+export { default as Brand } from "./Brand";
+
 const features = [
   [
     "01",
@@ -42,18 +46,6 @@ const features = [
     "⌁",
   ],
 ];
-export function Brand() {
-  return (
-    <span className="brand">
-      <span className="brand-mark" aria-hidden="true">
-        ✳
-      </span>
-      <span>
-        memoryseal<span className="brand-dot">.</span>
-      </span>
-    </span>
-  );
-}
 export default function Landing({ busy, error, onConnect }) {
   return (
     <div className="launch-page">
@@ -134,7 +126,7 @@ export default function Landing({ busy, error, onConnect }) {
             ↓
           </div>
           <div className="map-policy">
-            <span aria-hidden="true">✳</span>
+            <BrandMark />
             <div>
               <small>YOUR WORKSPACE</small>
               <b>MemorySeal</b>

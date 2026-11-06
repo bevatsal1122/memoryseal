@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useWorkspaceNavigation } from "../lib/workspace-navigation";
 import WorkspaceGuide from "../components/design/WorkspaceGuide";
 import Landing from "../components/design/Landing";
+import Brand from "../components/design/Brand";
 import AgentWorkbench from "../components/AgentWorkbench";
 import TeamVaultPanel from "../components/TeamVaultPanel";
 import { normalize } from "viem/ens";
@@ -12,7 +13,7 @@ import {
   loadResolverRecovery,
   saveResolverRecovery,
 } from "../lib/resolver-recovery.mjs";
-import { signedRequest } from "../lib/gateway.mjs";
+import { gatewayOrigin, signedRequest } from "../lib/gateway.mjs";
 import { memorySearchPath } from "../lib/memory-search.mjs";
 import { capabilityActive, expiryValues } from "../lib/expiry.mjs";
 import {
@@ -541,6 +542,7 @@ function DashboardSession({ signal }) {
     setDetail(null);
   }
   async function connect() {
+    gatewayOrigin(api);
     if (!window.ethereum) throw new Error("Install an EVM wallet to connect.");
     const accounts = await window.ethereum.request({
       method: "eth_requestAccounts",
@@ -576,12 +578,7 @@ function DashboardSession({ signal }) {
       ) : (
         <>
           <aside className="sidebar">
-            <div className="brand">
-              <span className="brand-mark">✳</span>
-              <span>
-                memoryseal<span className="brand-dot">.</span>
-              </span>
-            </div>
+            <Brand />
             <div className="sidebar-label">WORKSPACE</div>
             <nav className="side-nav" aria-label="Workspace navigation">
               {nav.map(([id, label, icon]) => (

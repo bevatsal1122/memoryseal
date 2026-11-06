@@ -7,7 +7,9 @@ export function gatewayOrigin(api, page = globalThis.location) {
   if (!(["http:", "https:"].includes(url.protocol)) || url.username || url.password ||
       url.search || url.hash || url.pathname !== "/") throw new Error("Invalid gateway URL.");
   if (url.protocol === "http:" && (!loopback(url.hostname) || (page && !loopback(page.hostname)))) {
-    throw new Error("Remote gateways require HTTPS; local HTTP requires a locally hosted dashboard.");
+    throw new Error(loopback(url.hostname)
+      ? "This hosted website is configured to use a local gateway. Deploy the Python gateway over HTTPS, set NEXT_PUBLIC_GATEWAY_URL to its public URL, and rebuild the frontend. For local testing, open the locally hosted dashboard instead."
+      : "The configured gateway uses HTTP. Set NEXT_PUBLIC_GATEWAY_URL to the gateway’s HTTPS URL and rebuild the frontend.");
   }
   if (page && page.protocol !== "https:" && !loopback(page.hostname)) {
     throw new Error("The dashboard requires HTTPS outside local development.");

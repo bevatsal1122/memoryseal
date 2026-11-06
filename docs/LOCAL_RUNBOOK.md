@@ -296,3 +296,24 @@ Place the existing and new base64-encoded 32-byte keys in the process environmen
 With the same rotation environment variables, run `.venv/bin/python -m memoryseal.demo.verify_rotation SOURCE_DB NEW_SNAPSHOT_DB` to compare the prepared copy with the source. The verifier checks schema and table contents, verifies every memory under both keys, and checks the retry digests without printing plaintext or keys. It reports a point-in-time match only; keep every writer stopped through verification and any subsequent cutover, because it cannot detect changes after its read. It does not switch the database or keys or establish secure deletion of old ciphertext.
 
 If the database has no encrypted memory rows, snapshot comparison reports `matched_no_encrypted_memories` and `keys_verified_against_memory: false`: there is no ciphertext against which to check either supplied key. This status is not confirmation that the old or new key is the intended one.
+
+
+## Hosted frontend with a local gateway
+
+A Vercel frontend does not deploy the Python gateway. The default `http://localhost:8000` is for local development only. A hosted frontend must use the gateway’s actual public HTTPS origin. Wallet funding or changing the wallet network does not fix a missing backend.
+
+For `https://sealmemory.vercel.app`, deploy the gateway with persistent database storage and its server-side configuration, then set:
+
+```text
+# Frontend build settings — use your actual deployed gateway origin
+NEXT_PUBLIC_GATEWAY_URL=https://YOUR-GATEWAY-HOST
+NEXT_PUBLIC_GATEWAY_AUDIENCE=memoryseal-local
+
+# Python gateway settings
+MEMORYSEAL_REQUEST_AUDIENCE=memoryseal-local
+MEMORYSEAL_DASHBOARD_ORIGINS=https://sealmemory.vercel.app
+```
+
+The audience values must match; `memoryseal-local` is the existing default, not a URL. Rebuild/redeploy the frontend after changing its public environment variables, and restart the gateway after changing its allowed origins. Its `/health` endpoint should respond with `{"status":"ok"}`. A successful health response alone does not verify authentication, CORS or integrations. Keep encryption keys, provider credentials and signing keys in the backend configuration, never in `NEXT_PUBLIC_*` variables.
+
+Until the backend is deployed, run the gateway and frontend locally and open `http://localhost:3000`. Do not disable the HTTPS check to connect the public site to local HTTP.
