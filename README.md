@@ -91,3 +91,7 @@ The current inference paths do not verify response binding to the submitted requ
 The current build includes organization roles, a local TypeScript SDK, opt-in client-held encryption, online vault-key rotation, and explicit routing across configured EVM deployments. Start with [the feature/setup/test guide](docs/TEAM_VAULT_MULTICHAIN.md) and [SDK README](sdk/typescript/README.md). Build the SDK before the dashboard: `npm ci --prefix sdk/typescript && npm run build --prefix sdk/typescript`.
 
 Vault plaintext stays in the client and is not sent to the server's 0G classifier. Owner-approved sharing and independent inference verification are distinct. Existing ordinary memories keep their gateway-encrypted storage; additional live chains must be deployed/configured separately.
+
+### Frontend design and navigation
+
+See [the frontend guide](docs/FRONTEND_DESIGN.md) for the neobrutalist design system, workspace navigation, focused agent/integration tasks, and responsive acceptance checks.

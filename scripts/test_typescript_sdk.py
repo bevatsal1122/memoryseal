@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory(prefix="memoryseal-sdk-test-") as directory:
             stderr=log,
         )
         try:
-            for _ in range(100):
+            for _ in range(300):
                 try:
                     with urlopen(env["MEMORYSEAL_TEST_GATEWAY"] + "/health", timeout=1):
                         break
@@ -41,6 +41,8 @@ with tempfile.TemporaryDirectory(prefix="memoryseal-sdk-test-") as directory:
                     if server.poll() is not None:
                         raise RuntimeError("isolated gateway failed to start")
                     time.sleep(0.1)
+            else:
+                raise RuntimeError("isolated gateway health check timed out")
             for folder in (repo / "sdk/typescript/test", repo / "web/test"):
                 subprocess.run(
                     ["node", "--test", *map(str, folder.glob("*.mjs"))],
@@ -53,6 +55,10 @@ with tempfile.TemporaryDirectory(prefix="memoryseal-sdk-test-") as directory:
                 assert "CLIENT_ONLY_SECRET_789" not in stored
                 assert "concurrent new write" not in stored
             print("SDK end-to-end passed; plaintext markers absent from isolated database")
+        except Exception:
+            log.flush()
+            print((Path(directory) / "server.log").read_text(), file=sys.stderr)
+            raise
         finally:
             server.terminate()
             server.wait(timeout=10)

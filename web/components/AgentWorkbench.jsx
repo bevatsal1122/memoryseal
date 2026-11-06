@@ -9,6 +9,7 @@ import {
 } from "../lib/chain.mjs";
 
 export default function AgentWorkbench({ account, request, signal }) {
+  const [operation, setOperation] = useState("write");
   const [access, setAccess] = useState(null);
   const [agentId, setAgentId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -105,7 +106,7 @@ export default function AgentWorkbench({ account, request, signal }) {
       ).observation,
   });
   return (
-    <section className="agent-workbench">
+    <section className="agent-workbench" data-operation={operation}>
       <div className="section-head">
         <div>
           <span className="eyebrow">SIGNED AGENT OPERATIONS</span>
@@ -178,8 +179,24 @@ export default function AgentWorkbench({ account, request, signal }) {
               ))}
             </ul>
           </div>
+          <nav className="operation-tabs" aria-label="Agent operations">
+            {[
+              ["write", "Write memory"],
+              ["read", "Read memories"],
+              ["simulate", "Simulate permission"],
+              ["transfer", "Onchain transfer"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                aria-current={operation === id ? "page" : undefined}
+                onClick={() => setOperation(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
           <div className="workbench-grid">
-            <article>
+            <article className="operation-write">
               <h3>1. Write a memory</h3>
               <p className="muted">
                 Temporary non-private inference: use synthetic content only. A
@@ -315,13 +332,26 @@ export default function AgentWorkbench({ account, request, signal }) {
                 </div>
               )}
             </article>
-            <article>
+            <article className="operation-read">
               <h3>2. Read shared memories</h3>
               <p className="muted">
-                Reads use the selected namespace above. Quarantined records
+                Choose the namespace you want to read. Quarantined records
                 remain withheld. Unverified observations require explicit owner
                 review before sharing; read permission is still required.
               </p>
+              <label htmlFor="wb-read-namespace">Namespace</label>
+              <input
+                id="wb-read-namespace"
+                value={namespace}
+                disabled={!!attempt}
+                onChange={(e) => setNamespace(e.target.value)}
+                maxLength={128}
+              />
+              {attempt && (
+                <p className="muted">
+                  Finish the pending write before changing its namespace.
+                </p>
+              )}
               <button
                 disabled={busy || selected.revoked}
                 onClick={() => run(() => read())}
@@ -352,6 +382,8 @@ export default function AgentWorkbench({ account, request, signal }) {
                   )}
                 </div>
               )}
+            </article>
+            <article className="operation-simulate">
               <h3>3. Check local transfer permission</h3>
               <p className="muted">
                 A simulation does not send tokens. Local permissions and onchain
@@ -410,7 +442,7 @@ export default function AgentWorkbench({ account, request, signal }) {
               )}
             </article>
           </div>
-          <article className="detail">
+          <article className="detail operation-transfer">
             <h3>4. Protected onchain transfer</h3>
             <p>
               Connect the finance agent wallet on Sepolia. The owner must first

@@ -418,6 +418,20 @@ export default function TeamVaultPanel({ account, signal, mode }) {
             0G. Release requires a person to inspect the decrypted content.
             Existing gateway-encrypted memories remain in Memories.
           </p>
+          <div className="vault-progress" aria-label="Encryption setup status">
+            <span className={identity ? "complete" : ""}>
+              {identity ? "✓" : "01"} Identity{" "}
+              {identity ? "unlocked" : "locked"}
+            </span>
+            <span className={backedUp ? "complete" : ""}>
+              {backedUp ? "✓" : "02"}{" "}
+              {backedUp ? "Backup available" : "Back up your key"}
+            </span>
+            <span className={scope ? "complete" : ""}>
+              {scope ? "✓" : "03"}{" "}
+              {scope ? "Namespace selected" : "Choose a namespace"}
+            </span>
+          </div>
           <details open>
             <summary>1. Unlock your encryption identity</summary>
             <p>
