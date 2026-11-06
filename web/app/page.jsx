@@ -6,6 +6,8 @@ import WorkspaceGuide from "../components/design/WorkspaceGuide";
 import Landing from "../components/design/Landing";
 import Brand from "../components/design/Brand";
 import NavIcon from "../components/design/NavIcon";
+import AgentSetup from "../components/AgentSetup";
+import MemoryEvidence from "../components/MemoryProof";
 import AgentWorkbench from "../components/AgentWorkbench";
 import TeamVaultPanel from "../components/TeamVaultPanel";
 import { normalize } from "viem/ens";
@@ -46,280 +48,6 @@ import {
 
 const api = process.env.NEXT_PUBLIC_GATEWAY_URL || "http://localhost:8000";
 const audience = process.env.NEXT_PUBLIC_GATEWAY_AUDIENCE || "memoryseal-local";
-
-function MemoryEvidence({
-  memory,
-  observation,
-  history,
-  eventObservations,
-  onObserve,
-  onHistory,
-  onObserveEvent,
-  onPublishEvent,
-  onReconcileEvent,
-  onParent,
-  onChildren,
-  busy,
-}) {
-  const analysis = memory.analysis;
-  const evidence = analysis?.evidence;
-  return (
-    <details>
-      <summary>Analysis and provenance</summary>
-      <p className="muted">
-        Memory ID: {memory.id} · policy version {memory.policy_version}
-      </p>
-      <p className="muted">
-        Write request ID: {memory.request_id || "Not recorded"}
-      </p>
-      <p className="muted">
-        Original gateway decision reason:{" "}
-        {memory.creation_reason || "Not recorded"}. Current read eligibility is
-        checked separately.
-      </p>
-      <p className="muted">
-        Parent memory: {memory.parent_id || "None"} · commitment:{" "}
-        {memory.commitment}
-      </p>
-      <div className="inline">
-        {memory.parent_id && (
-          <button disabled={busy} onClick={onParent}>
-            Show parent
-          </button>
-        )}
-        <button disabled={busy} onClick={onChildren}>
-          Show children
-        </button>
-      </div>
-      <p className="muted">
-        Inference request: {memory.inference_reference || "Not available"}
-      </p>
-      {analysis ? (
-        <>
-          <p>
-            Classifier category: {analysis.category || "not available"} · risk:{" "}
-            {analysis.risk} · recommendation: {analysis.recommendation} ·
-            suspicious instruction:{" "}
-            {analysis.suspicious_instruction ? "yes" : "no"}
-          </p>
-          <p className="muted">
-            Reported conflicts:{" "}
-            {analysis.conflicts_with?.length
-              ? analysis.conflicts_with.join(", ")
-              : "None"}
-          </p>
-          {evidence?.inference_transport === "experimental_bridge" && (
-            <p className="muted">
-              Experimental 0G bridge: this result is unverified and remains
-              quarantined. The gateway trusts the configured bridge executable;
-              its output does not independently prove provider attestation,
-              plaintext binding, or which model executed.
-            </p>
-          )}
-          {evidence?.bridge_reported_provider && (
-            <p className="muted">
-              Bridge-reported selected provider:{" "}
-              {evidence.bridge_reported_provider}. This is an assertion from the
-              configured executable, not independent evidence.
-            </p>
-          )}
-          {evidence?.bridge_receipt_signer_matched === true && (
-            <p className="muted">
-              A bridge-reported encrypted-response receipt was signed by the
-              configured signer. This does not independently bind the receipt to
-              the submitted memory or establish attestation.
-            </p>
-          )}
-          {evidence?.bridge_receipt_binding_matched === true && (
-            <p className="muted">
-              The receipt hashes match encrypted artifacts reported by the
-              bridge. This hash check alone does not establish what those
-              artifacts contain or that they were sent on the wire.
-            </p>
-          )}
-          {evidence?.bridge_receipt_challenge_matched === true && (
-            <p className="muted">
-              The signed request artifacts include this inference attempt’s
-              random challenge. This helps detect replay but does not establish
-              plaintext binding or provider attestation.
-            </p>
-          )}
-          {evidence?.bridge_receipt_response_choices_matched === true && (
-            <p className="muted">
-              The returned choices matched the independently opened, signed
-              response ciphertext using a bridge-reported ephemeral key. This
-              does not establish that the request plaintext was correct or that
-              the provider was attested.
-            </p>
-          )}
-          {evidence?.bridge_receipt_request_messages_matched === true && (
-            <p className="muted">
-              The signed request ciphertext matches the submitted messages using
-              bridge-reported sealing material. This does not attest the
-              recipient key or prove which service received the request.
-            </p>
-          )}
-          {evidence?.bridge_quote_recipient_key_matched === true && (
-            <p className="muted">
-              The request key matched a strict provider-verifier result. This is
-              a gateway observation that trusts the configured verifier, RPC and
-              bridge; live execution is not established.
-            </p>
-          )}
-          {evidence && (
-            <p className="muted">
-              0G {evidence.network} · router verification:{" "}
-              {evidence.router_verified === true
-                ? "reported successful"
-                : evidence.router_verified === false
-                  ? "reported failed"
-                  : "not available"}{" "}
-              · provider: {evidence.provider || "not available"} · response key:{" "}
-              {evidence.response_key || "not available"}
-            </p>
-          )}
-          {Number.isInteger(evidence?.policy_snapshot_version) && (
-            <p className="muted">
-              Gateway-reported policy snapshot: version{" "}
-              {evidence.policy_snapshot_version} · stored memory version:{" "}
-              {memory.policy_version}.{" "}
-              {memory.inference_status === "stale"
-                ? "Policy changed or a capability expired during inference; treat this result as stale."
-                : "Snapshot metadata is not proof of request binding."}
-            </p>
-          )}
-          {evidence?.gateway_connection_attested === true && (
-            <p className="muted">
-              Gateway reports a strict-verifier certificate match on its
-              inference connection: SHA-256{" "}
-              {evidence.gateway_certificate_sha256}. This trusts the configured
-              verifier and does not independently attest the provider response.
-            </p>
-          )}
-          {evidence?.provider_record_matched === true && (
-            <p className="muted">
-              Configured provider pins matched the observed 0G service record
-              before inference. The configured RPC is trusted.
-            </p>
-          )}
-          {evidence?.pinned_signature_verified !== undefined && (
-            <p className="muted">
-              Pinned signer check:{" "}
-              {evidence.pinned_signature_verified
-                ? "matched response text"
-                : "failed"}
-              . The provider and signer are operator-configured; this does not
-              verify the request or attestation.
-            </p>
-          )}
-          <p className="muted">
-            Analysis and reported conflicts are advisory. Local policy is
-            separate from onchain enforcement. Router-reported verification is
-            not independent verification.
-          </p>
-        </>
-      ) : (
-        <p className="muted">
-          {memory.analysis_state === "invalid"
-            ? "Stored classifier analysis is invalid. This memory is withheld from agent reads."
-            : "No classifier analysis available."}
-        </p>
-      )}
-      <p className="muted">
-        Publishing uses the configured Arkiv test wallet and publishes event
-        metadata, never memory content. Uncertain events are checked without
-        resubmitting.
-      </p>
-      <button disabled={busy} onClick={onHistory}>
-        Show provenance events
-      </button>
-      {history?.events.some(
-        (e) => e.event_type === "memory_origin_attested",
-      ) && (
-        <p className="muted">
-          An agent signed a gateway-supplied commitment. This does not prove the
-          content is true or that the agent independently verified it.
-        </p>
-      )}
-      {history && (
-        <div>
-          {history.events.length === 0 && <p className="muted">No events</p>}
-          {history.events.map((e) => (
-            <div key={e.event_id}>
-              <small>
-                {e.event_type}: {e.state} · {e.event_id}
-              </small>
-              {e.state === "pending" && (
-                <button
-                  disabled={busy}
-                  onClick={() => onPublishEvent(e.event_id)}
-                >
-                  Publish public metadata
-                </button>
-              )}
-              {e.state === "uncertain" && (
-                <button
-                  disabled={busy}
-                  onClick={() => onReconcileEvent(e.event_id)}
-                >
-                  Reconcile without republishing
-                </button>
-              )}
-              <button
-                disabled={busy || e.state !== "published"}
-                onClick={() => onObserveEvent(e.event_id)}
-              >
-                Check this Arkiv event
-              </button>
-              {eventObservations[e.event_id] && (
-                <small>
-                  Current query: {eventObservations[e.event_id]}. This is an RPC
-                  observation, not proof of permanence or truth.
-                </small>
-              )}
-            </div>
-          ))}
-          {history.truncated && <p className="muted">List truncated</p>}
-        </div>
-      )}
-      <p className="muted">
-        Creation event ID: {memory.provenance?.event_id || "Not available"}
-      </p>
-      <p className="muted">
-        Arkiv transaction:{" "}
-        {memory.provenance?.transaction_hash || "Not available"}
-        {/^0x[0-9a-fA-F]{64}$/.test(memory.provenance?.transaction_hash || "") && (
-          <>
-            {" · "}
-            <a
-              href={`https://rabdi.explorer.arkiv.network/tx/${memory.provenance.transaction_hash}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="View Arkiv transaction in explorer (opens in a new tab)"
-            >
-              View transaction ↗
-            </a>
-          </>
-        )}
-      </p>
-      <p className="muted">
-        Arkiv creator: {memory.provenance?.creator_address || "Not recorded"}
-      </p>
-      <button
-        disabled={busy || memory.provenance?.state !== "published"}
-        onClick={onObserve}
-      >
-        Check Arkiv record
-      </button>
-      {observation && (
-        <p className="muted">
-          Current Arkiv query: {observation}. This is an RPC observation, not
-          proof of permanence or truth.
-        </p>
-      )}
-    </details>
-  );
-}
 
 function eventDescription(event) {
   if (event.event_type === "namespace_access_denied")
@@ -362,7 +90,6 @@ export default function Dashboard() {
   const controller = useRef(new AbortController());
   useEffect(() => {
     const wallet = window.ethereum;
-    if (!wallet?.on) return;
     const reset = () => {
       clearBrowserSessions();
       controller.current.abort();
@@ -370,14 +97,14 @@ export default function Dashboard() {
       setSession((value) => value + 1);
     };
     window.addEventListener("memoryseal:signout", reset);
-    wallet.on("accountsChanged", reset);
-    wallet.on("chainChanged", reset);
-    wallet.on("disconnect", reset);
+    wallet?.on?.("accountsChanged", reset);
+    wallet?.on?.("chainChanged", reset);
+    wallet?.on?.("disconnect", reset);
     return () => {
       window.removeEventListener("memoryseal:signout", reset);
-      wallet.removeListener?.("accountsChanged", reset);
-      wallet.removeListener?.("chainChanged", reset);
-      wallet.removeListener?.("disconnect", reset);
+      wallet?.removeListener?.("accountsChanged", reset);
+      wallet?.removeListener?.("chainChanged", reset);
+      wallet?.removeListener?.("disconnect", reset);
     };
   }, []);
   return <DashboardSession key={session} signal={controller.current.signal} />;
@@ -396,6 +123,7 @@ function DashboardSession({ signal }) {
       useSession: true,
       signal,
     });
+  const searchSequence = useRef(0);
   const [account, setAccount] = useState("");
   const [view, setView] = useWorkspaceNavigation();
   const [integrationTab, setIntegrationTab] = useState("connections");
@@ -533,13 +261,15 @@ function DashboardSession({ signal }) {
   }
   async function refresh(owner) {
     // Read requests share the browser login session.
-    const [agents, capabilities, memories, events] = await Promise.all([
+    const [agents, capabilities, memories, events, summary] = await Promise.all([
       request(owner, "GET", "/agents"),
       request(owner, "GET", "/capabilities"),
       request(owner, "GET", "/memories"),
       request(owner, "GET", "/events"),
+      request(owner, "GET", "/workspace-summary"),
     ]);
     setData({
+      summary,
       agents: agents.agents,
       capabilities: capabilities.capabilities,
       acceptanceRules: capabilities.acceptance_rules || [],
@@ -553,16 +283,39 @@ function DashboardSession({ signal }) {
     setAppliedFilter({ agent: "", namespace: "", status: "", requestId: "" });
   }
   async function searchMemories(filter, offset = 0) {
+    const sequence = ++searchSequence.current;
     const result = await request(
       account,
       "GET",
       memorySearchPath(filter, offset),
     );
+    if (sequence !== searchSequence.current || signal.aborted) return;
     setMemoryPage(result);
     setMemoryOffset(offset);
     setAppliedFilter(filter);
     setDetail(null);
   }
+  useEffect(() => {
+    if (!data || view !== "memories") return;
+    const timer = setTimeout(() => { searchMemories(memoryFilter).catch(e => {if (!signal.aborted) setError(e.message);}); }, 400);
+    return () => clearTimeout(timer);
+  }, [account, view, JSON.stringify(memoryFilter), !!data]);
+  useEffect(() => {
+    if (!data || view !== "memories" || detail || busy) return;
+    const timer = setInterval(() => {
+      searchMemories(appliedFilter, memoryOffset).catch(() => {});
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [account, view, !!detail, busy, JSON.stringify(appliedFilter), memoryOffset]);
+  useEffect(() => {
+    if (!data || view !== "settings") return;
+    run(async () => {
+      const [ready, chains] = await Promise.all([request(account,"GET","/integrations/readiness"), request(account,"GET","/chains")]);
+      setIntegrationReadiness(ready); setConfiguredChains(chains.chains);
+      if (!registry) setRegistry(ready.onchain_registry || "");
+      if (!chainId) setChainId(String(ready.onchain_chain_id || 11155111));
+    });
+  }, [account, view, !!data]);
   async function connect() {
     gatewayOrigin(api);
     if (!window.ethereum) throw new Error("Install an EVM wallet to connect.");
@@ -582,12 +335,12 @@ function DashboardSession({ signal }) {
     ["teams", "Organizations"],
     ["vault", "Encrypted vault"],
     ["activity", "Activity"],
-    ["workbench", "Agent console"],
-    ["settings", "Integrations"],
+    ["workbench", "Playground"],
+    ["settings", "Settings"],
   ];
   const activeAgents = data?.agents.filter((a) => !a.revoked).length || 0;
   const quarantineCount =
-    data?.memories.filter((m) => m.status === "quarantined").length || 0;
+    data?.summary?.needs_review || 0;
   return (
     <main className={data ? "app-shell" : "landing-shell"}>
       {data && (
@@ -637,6 +390,10 @@ function DashboardSession({ signal }) {
                 >
                   Sign out
                 </button>
+                <button className="refresh-button" disabled={busy} onClick={() => run(async () => {
+                  await window.ethereum.request({method: "wallet_requestPermissions", params: [{eth_accounts: {}}]});
+                  clearBrowserSessions(); await connect();
+                })}>Switch account</button>
                 <span className="wallet-chip">
                   {account.slice(0, 6)}…{account.slice(-4)}
                 </span>
@@ -686,26 +443,7 @@ function DashboardSession({ signal }) {
                 </p>
               </div>
             </div>
-            {["overview", "memories", "workbench"].includes(view) &&
-              data.memories.some(
-                (m) => m.inference_status === "unverified",
-              ) && (
-                <div className="trust-notice">
-                  <span>!</span>
-                  <div>
-                    <b>Unverified inference</b>
-                    <p>
-                      Model results are not independently verified. Sharing
-                      requires quarantine clearance through explicit owner
-                      review. Use synthetic data while independent inference
-                      verification is incomplete.
-                    </p>
-                  </div>
-                  <button onClick={() => setView("memories")}>
-                    Review memories ↗
-                  </button>
-                </div>
-              )}
+
             <div hidden={view !== "teams" && view !== "vault"}>
               <TeamVaultPanel
                 key={account}
@@ -767,12 +505,14 @@ function DashboardSession({ signal }) {
               </nav>
             )}
             <section className="panel-setup">
-              <h2>Integration configuration</h2>
-              <p className="muted">
-                Check the gateway’s current configuration before running the
-                live demo. This does not test service availability, balances,
-                wallet ownership, deployed contracts or attestation.
-              </p>
+              <h2>Connections</h2>
+              <p>Services used by your workspace. Configured does not mean live-verified.</p>
+              {integrationReadiness && <div className="connection-summary">
+                <p>Proof publication: {data.summary?.auto_publish ? "Automatic" : "Manual"}</p>
+                <p>ENS: {integrationReadiness.ens_sepolia_configured ? "Configured" : "See diagnostics"}</p>
+                <p>Onchain deployment: {integrationReadiness.onchain_registry ? "Configured" : "Not configured"}</p>
+              </div>}
+              <details><summary>Connection diagnostics</summary>
               <button
                 disabled={busy}
                 onClick={() =>
@@ -907,7 +647,9 @@ function DashboardSession({ signal }) {
                   </p>
                 </div>
               )}
+              </details>
             </section>
+            {view === "overview" && <section className="overview-activity"><h2>Recent activity</h2>{data.events.slice(0, 4).map(event => <p key={event.id}>{event.event_type.replaceAll("_", " ")} · {event.decision}</p>)}{!data.events.length && <p>Your agents’ activity will appear here.</p>}<button onClick={() => setView("activity")}>View activity</button></section>}
             <div className="stats">
               <div>
                 <small>AGENTS</small>
@@ -928,17 +670,14 @@ function DashboardSession({ signal }) {
                 </strong>
               </div>
               <div>
-                <small>QUARANTINED (LATEST 100)</small>
+                <small>NEEDS REVIEW</small>
                 <strong>
-                  {
-                    data.memories.filter((m) => m.status === "quarantined")
-                      .length
-                  }
+                  {quarantineCount}
                 </strong>
               </div>
               <div>
-                <small>POLICY VERSION</small>
-                <strong>{data.version}</strong>
+                <small>MEMORIES</small>
+                <strong>{data.summary?.memories || 0}</strong>
               </div>
             </div>
             <div className="grid">
@@ -954,36 +693,15 @@ function DashboardSession({ signal }) {
                   data.agents.map((a) => (
                     <div className="row" key={a.id}>
                       <div>
-                        <b>{a.ens_name || "Agent"}</b>
-                        <small>{a.signing_address}</small>
-                        <small>
-                          ENS{" "}
-                          {ensObservations[a.id]
-                            ? `${ensObservations[a.id].matches ? "address matched" : "address mismatch"} at block ${ensObservations[a.id].blockNumber}`
-                            : "not checked"}
-                        </small>
-                        {a.ens_name && (
-                          <button
-                            className="inspect"
-                            disabled={busy}
-                            onClick={() =>
-                              run(async () => {
-                                const result = await request(
-                                  account,
-                                  "POST",
-                                  `/agents/${a.id}/observe-ens`,
-                                  {},
-                                );
-                                setEnsObservations((prev) => ({
-                                  ...prev,
-                                  [a.id]: result.observation,
-                                }));
-                              })
-                            }
-                          >
-                            Check ENS address
-                          </button>
-                        )}
+                        <b>{a.label || a.ens_name || "Agent"}</b>
+                        <details onToggle={e => {
+                          if (e.target !== e.currentTarget || !e.currentTarget.open || !a.ens_name || ensObservations[a.id]) return;
+                          request(account, "GET", `/agents/${a.id}/observe-ens`).then(result => setEnsObservations(p => ({...p, [a.id]: result.observation}))).catch(error => setEnsObservations(p => ({...p, [a.id]: {error: error.message}})));
+                        }}><summary>Name and identity</summary>
+                          <small>{a.signing_address}</small>
+                          {a.ens_name && <><p>{a.ens_name}</p><small>{ensObservations[a.id]?.error || (ensObservations[a.id] ? ensObservations[a.id].matches ? "ENS address matched" : "ENS address mismatch" : "Checking ENS…")}</small><a href="https://explorer.ens.dev" target="_blank" rel="noopener noreferrer">Open ENS explorer ↗</a></>}
+                          <button onClick={() => {setEnsAgent(a.signing_address); setView("settings"); setIntegrationTab("names");}}>Manage ENS name</button>
+                        </details>
                       </div>
                       {a.revoked ? (
                         <span className="pill">Revoked</span>
@@ -1008,54 +726,7 @@ function DashboardSession({ signal }) {
                     </div>
                   ))
                 )}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    run(async () => {
-                      await request(account, "POST", "/agents/register", {
-                        signing_address: address,
-                        ens_name: ensName || null,
-                        policy_chain_id: agentPolicyChain
-                          ? Number(agentPolicyChain)
-                          : null,
-                      });
-                      setAddress("");
-                      setEnsName("");
-                      await refresh(account);
-                    });
-                  }}
-                >
-                  <label htmlFor="agent-address">Agent signing address</label>
-                  <input
-                    id="agent-address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="0x…"
-                    required
-                  />
-                  <label htmlFor="agent-policy-chain">
-                    Policy chain ID (optional)
-                  </label>
-                  <input
-                    id="agent-policy-chain"
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={agentPolicyChain}
-                    onChange={(e) => setAgentPolicyChain(e.target.value)}
-                    placeholder="Default deployment"
-                  />
-                  <label htmlFor="agent-name">
-                    ENS name (optional, unverified)
-                  </label>
-                  <input
-                    id="agent-name"
-                    value={ensName}
-                    onChange={(e) => setEnsName(e.target.value)}
-                    placeholder="browser.example.eth"
-                  />
-                  <button disabled={busy}>Register agent</button>
-                </form>
+                <AgentSetup account={account} version={data.version} request={request} onComplete={() => refresh(account)} />
               </section>
               <section className="panel-permissions">
                 <h2>Memory acceptance</h2>
@@ -1089,10 +760,10 @@ function DashboardSession({ signal }) {
                   <select id="acceptance-agent" name="agent_id" required defaultValue="">
                     <option value="" disabled>Choose agent</option>
                     {data.agents.filter((agent) => !agent.revoked).map((agent) => (
-                      <option key={agent.id} value={agent.id}>{agent.ens_name || agent.signing_address}</option>
+                      <option key={agent.id} value={agent.id}>{agent.label || agent.ens_name || agent.signing_address}</option>
                     ))}
                   </select>
-                  <label htmlFor="acceptance-namespace">Exact namespace</label>
+                  <label htmlFor="acceptance-namespace">Collection</label>
                   <input id="acceptance-namespace" name="namespace" required maxLength={200} placeholder="research" />
                   <label htmlFor="acceptance-mode">Acceptance mode</label>
                   <select id="acceptance-mode" name="mode" defaultValue="strict">
@@ -1103,52 +774,18 @@ function DashboardSession({ signal }) {
                     Returning to strict withholds unreviewed memories accepted through Standard.</p>
                   <button disabled={busy}>Sign acceptance policy</button>
                 </form>
-                <h2>Capabilities</h2>
+                <h2>Permissions</h2>
                 <p className="muted">
                   Only an owner-signed grant changes authority.
                 </p>
-                {data.capabilities.length === 0 ? (
-                  <p className="muted">No permissions granted.</p>
-                ) : (
-                  data.capabilities.map((c) => (
-                    <div className="row" key={c.id}>
-                      <div>
-                        <b>
-                          {c.operation} · {c.resource}
-                        </b>
-                        <small>
-                          {c.agent_id.slice(0, 8)} ·{" "}
-                          {c.max_amount == null
-                            ? "Namespace access"
-                            : `Limit ${c.max_amount} base units`}
-                        </small>
-                        <small>Expires: {c.expires_at || "Never"} (UTC)</small>
-                      </div>
-                      {c.revoked ? (
-                        <span className="pill">Revoked</span>
-                      ) : !capabilityActive(c) ? (
-                        <span className="pill">Expired</span>
-                      ) : (
-                        <button
-                          disabled={busy}
-                          onClick={() =>
-                            run(async () => {
-                              await request(
-                                account,
-                                "POST",
-                                `/capabilities/${c.id}/revoke`,
-                                {},
-                              );
-                              await refresh(account);
-                            })
-                          }
-                        >
-                          Revoke
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
+                {data.capabilities.length === 0 && <p>No permissions yet. Add an agent to get started.</p>}
+                {data.agents.filter(a => data.capabilities.some(c => c.agent_id === a.id)).map(a => <details key={a.id} className="permission-group">
+                  <summary>{a.label || a.ens_name || a.signing_address} · {data.capabilities.filter(c => c.agent_id === a.id && capabilityActive(c)).length} active permissions</summary>
+                  {data.capabilities.filter(c => c.agent_id === a.id).map(c => <div className="row" key={c.id}>
+                    <div><b>{c.operation} · {c.resource}</b><small>{c.max_amount ? `Limit: ${c.max_amount} base units · ` : ""}{c.expires_at ? `Expires ${new Date(c.expires_at).toLocaleString()}` : "No expiry"}</small></div>
+                    {capabilityActive(c) ? <button disabled={busy} onClick={() => run(async () => {await request(account,"POST",`/capabilities/${c.id}/revoke`,{}); await refresh(account);})}>Revoke</button> : <small>{c.revoked ? "Revoked" : "Expired"}</small>}
+                  </div>)}
+                </details>)}
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -1173,7 +810,7 @@ function DashboardSession({ signal }) {
                     });
                   }}
                 >
-                  <label htmlFor="grant-agent">Grant a capability</label>
+                  <label htmlFor="grant-agent">Add permission</label>
                   <select
                     id="grant-agent"
                     required
@@ -1183,7 +820,7 @@ function DashboardSession({ signal }) {
                     <option value="">Choose agent</option>
                     {data.agents.map((a) => (
                       <option value={a.id} key={a.id}>
-                        {a.ens_name || a.signing_address}
+                        {a.label || a.ens_name || a.signing_address}
                       </option>
                     ))}
                   </select>
@@ -1226,20 +863,12 @@ function DashboardSession({ signal }) {
                     value={localExpiry}
                     onChange={(e) => setLocalExpiry(e.target.value)}
                   />
-                  <button disabled={busy}>Sign grant</button>
+                  <button disabled={busy}>Save permission</button>
                 </form>
               </section>
               <section className="panel-memories">
-                <h2>Memory explorer</h2>
-                <p className="muted">
-                  Source claims are evidence, never permission. Search matches
-                  metadata, not encrypted content. Status filters use the stored
-                  status; accepted records can still be withheld if their
-                  recorded ancestry is unsafe. Quarantining signs the event ID,
-                  memory commitment and current policy version. The queued
-                  public record also includes the gateway audience, timestamp
-                  and nonce.
-                </p>
+                <h2>Memories</h2>
+                <p className="muted">View memories and review exceptions. {data.summary?.auto_publish ? "Proofs publish automatically." : "Automatic proof publication is off; use proof recovery to publish."}</p>
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -1260,11 +889,11 @@ function DashboardSession({ signal }) {
                     <option value="">All agents</option>
                     {data.agents.map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.ens_name || a.signing_address}
+                        {a.label || a.ens_name || a.signing_address}
                       </option>
                     ))}
                   </select>
-                  <label htmlFor="search-namespace">Exact namespace</label>
+                  <label htmlFor="search-namespace">Collection</label>
                   <input
                     id="search-namespace"
                     value={memoryFilter.namespace}
@@ -1276,6 +905,7 @@ function DashboardSession({ signal }) {
                     }
                     placeholder="All namespaces"
                   />
+                  <details><summary>Advanced search</summary>
                   <label htmlFor="search-request">Write request ID</label>
                   <input
                     id="search-request"
@@ -1292,6 +922,7 @@ function DashboardSession({ signal }) {
                     An empty result does not rule out an in-flight write. Retry
                     an uncertain write with the same request ID.
                   </small>
+                  </details>
                   <label htmlFor="search-status">Status</label>
                   <select
                     id="search-status"
@@ -1307,7 +938,7 @@ function DashboardSession({ signal }) {
                     <option value="accepted">Accepted</option>
                     <option value="quarantined">Quarantined</option>
                   </select>
-                  <button disabled={busy}>Search memories</button>
+                  <small className="muted">Filters update automatically.</small>
                 </form>
                 <p className="muted">
                   {appliedFilter.memoryId
@@ -1324,37 +955,8 @@ function DashboardSession({ signal }) {
                   memoryPage.memories.map((m) => (
                     <div className="row" key={m.id}>
                       <div>
-                        <b>{m.category.replaceAll("_", " ")}</b>
-                        <small>
-                          {m.namespace} · {m.source_type} · {m.trust_class}
-                        </small>
-                        <small>
-                          Agent:{" "}
-                          {data.agents.find((a) => a.id === m.agent_id)
-                            ?.ens_name || m.agent_id}{" "}
-                          · {m.created_at}
-                        </small>
-                        <small>
-                          Inference: {m.inference_status}
-                          {m.auto_accepted && " · Accepted under owner’s Standard policy"}
-                          {m.owner_reviewed
-                            ? " · Owner reviewed for sharing"
-                            : ""}
-                        </small>
-                        {m.status === "accepted" &&
-                          m.lineage_eligible === false && (
-                            <small>
-                              Withheld from agent reads: this memory or its
-                              ancestry is quarantined, invalid, or lacks an
-                              eligible inference status.
-                            </small>
-                          )}
-                        <small>
-                          Provenance: {m.provenance?.state || "unavailable"}
-                          {m.provenance?.entity_key
-                            ? ` · ${m.provenance.entity_key}`
-                            : ""}
-                        </small>
+                        <b>{m.namespace} {m.category.replaceAll("_", " ")}</b>
+                        <small>{data.agents.find(a => a.id === m.agent_id)?.label || data.agents.find(a => a.id === m.agent_id)?.ens_name || "Agent " + m.agent_id.slice(0, 8)} · {new Date(/[Zz]|[+-]\d{2}:\d{2}$/.test(m.created_at) ? m.created_at : m.created_at + "Z").toLocaleString()}</small>
                         <MemoryEvidence
                           memory={m}
                           observation={provenanceObservations[m.id]}
@@ -1464,7 +1066,7 @@ function DashboardSession({ signal }) {
                             (m.status === "quarantined" ? "warning" : "")
                           }
                         >
-                          {m.status}
+                          {m.status === "quarantined" ? "Needs review" : m.lineage_eligible === false ? "Withheld" : "Available"}
                         </span>
                         <button
                           className="inspect"
@@ -1472,17 +1074,13 @@ function DashboardSession({ signal }) {
                           onClick={() =>
                             run(async () => {
                               setCommitmentCheck(null);
-                              setDetail(
-                                await request(
-                                  account,
-                                  "GET",
-                                  `/memories/${m.id}`,
-                                ),
-                              );
+                              const content = await request(account, "GET", `/memories/${m.id}`);
+                              setDetail(content);
+                              setCommitmentCheck(await verifyMemoryCommitment(content.content, content.commitment_salt, content.commitment));
                             })
                           }
                         >
-                          Inspect
+                          {m.status === "quarantined" ? "Review memory" : "View memory"}
                         </button>
                         {m.status === "accepted" && (
                           <button
@@ -1558,45 +1156,12 @@ function DashboardSession({ signal }) {
                       Source: {detail.source_reference || "Not supplied"} ·{" "}
                       {detail.trust_class}
                     </small>
-                    <p className="muted">
-                      This is a claim or observation. It does not grant
-                      permission. The commitment salt stays in this browser;
-                      sharing it can expose the content to guessing.
-                    </p>
-                    <button
-                      disabled={busy}
-                      onClick={() =>
-                        run(async () =>
-                          setCommitmentCheck(
-                            await verifyMemoryCommitment(
-                              detail.content,
-                              detail.commitment_salt,
-                              detail.commitment,
-                            ),
-                          ),
-                        )
-                      }
-                    >
-                      Check content commitment locally
-                    </button>
-                    {commitmentCheck !== null && (
-                      <p>
-                        Content {commitmentCheck ? "matches" : "does not match"}{" "}
-                        the gateway commitment. This does not establish truth or
-                        authorship; compare it separately with the Arkiv event.
-                      </p>
-                    )}
-                    {detail.status === "quarantined" && (
+                    <p role="status">{commitmentCheck === null ? "Checking saved content…" : commitmentCheck ? "Content integrity checked" : "Content integrity check failed — sharing blocked"}</p>
+                    {detail.status === "quarantined" && !detail.review_eligible && <p>This record cannot be released: its source, analysis, agent or related memories do not meet the review policy.</p>}
+                    {detail.status === "quarantined" && detail.review_eligible && (
                       <div className="detail">
                         <b>Owner review for sharing</b>
-                        <p>
-                          Only a low-risk agent observation can be released.
-                          First read its content and check its commitment above.
-                          Your signature approves this exact memory for agents
-                          with read access; it does not verify the model, grant
-                          permissions, or authorize a transfer. Signed review
-                          metadata is public when published to Arkiv.
-                        </p>
+                        <p>Allow authorized agents to read this observation. Your approval does not grant new permissions.</p>
                         <button
                           disabled={busy || commitmentCheck !== true}
                           onClick={() =>
@@ -1622,7 +1187,7 @@ function DashboardSession({ signal }) {
                             })
                           }
                         >
-                          Sign owner review and allow sharing
+                          Allow sharing
                         </button>
                       </div>
                     )}
@@ -1638,6 +1203,7 @@ function DashboardSession({ signal }) {
                 )}
               </section>
               <section className="panel-ens">
+                <details><summary>Advanced ENS management</summary>
                 <h2>Agent name record</h2>
                 <p className="muted">
                   Set an agent address on a parent name’s current ENSv2
@@ -1702,7 +1268,7 @@ function DashboardSession({ signal }) {
                     <option value="">Choose agent</option>
                     {data.agents.map((a) => (
                       <option key={a.id} value={a.signing_address}>
-                        {a.ens_name || a.signing_address}
+                        {a.label || a.ens_name || a.signing_address}
                       </option>
                     ))}
                   </select>
@@ -2108,8 +1674,10 @@ function DashboardSession({ signal }) {
                     )}
                   </div>
                 )}
+              </details>
               </section>
               <section className="panel-onchain">
+                <details><summary>Advanced onchain permissions and receipts</summary>
                 <h2>Protected transfers</h2>
                 <p className="muted">
                   These owner-signed transactions set a per-transfer token limit
@@ -2185,7 +1753,7 @@ function DashboardSession({ signal }) {
                     <option value="">Choose agent</option>
                     {data.agents.map((a) => (
                       <option key={a.id} value={a.signing_address}>
-                        {a.ens_name || a.signing_address}
+                        {a.label || a.ens_name || a.signing_address}
                         {a.revoked ? " (locally revoked)" : ""}
                       </option>
                     ))}
@@ -2537,15 +2105,15 @@ function DashboardSession({ signal }) {
                     <option value="">Choose agent</option>
                     {data.agents.map((a) => (
                       <option key={a.id} value={a.signing_address}>
-                        {a.ens_name || a.signing_address}
+                        {a.label || a.ens_name || a.signing_address}
                       </option>
                     ))}
                   </select>
                   <input
                     value={memoryNamespace}
                     onChange={(e) => setMemoryNamespace(e.target.value)}
-                    placeholder="Exact namespace"
-                    aria-label="Exact namespace"
+                    placeholder="Collection"
+                    aria-label="Collection"
                     required
                   />
                   <div className="checks">
@@ -2848,6 +2416,7 @@ function DashboardSession({ signal }) {
                     </div>
                   )}
                 </form>
+              </details>
               </section>
               <section className="panel-activity">
                 <h2>Decision trail</h2>

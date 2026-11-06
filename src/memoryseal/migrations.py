@@ -5,8 +5,8 @@ from sqlalchemy.engine import Engine
 
 from memoryseal.db import Base
 
-# Version 12 adds scoped owner acceptance rules and records automatic acceptance.
-SCHEMA_VERSION = 12
+# Version 13 adds guided setup receipts, agent labels, and durable publication scheduling.
+SCHEMA_VERSION = 13
 
 
 def migrate(engine: Engine) -> None:
@@ -22,6 +22,19 @@ def migrate(engine: Engine) -> None:
             agent_columns = {c["name"] for c in inspect(connection).get_columns("agents")}
             if "policy_chain_id" not in agent_columns:
                 connection.exec_driver_sql("ALTER TABLE agents ADD COLUMN policy_chain_id INTEGER")
+            if "label" not in agent_columns:
+                connection.exec_driver_sql("ALTER TABLE agents ADD COLUMN label VARCHAR")
+            for table in ("provenance_outbox", "vault_outbox"):
+                present = {c["name"] for c in inspect(connection).get_columns(table)}
+                for name, definition in {
+                    "publishing_started_at": "INTEGER",
+                    "next_check_at": "INTEGER NOT NULL DEFAULT 0",
+                    "check_attempts": "INTEGER NOT NULL DEFAULT 0",
+                }.items():
+                    if name not in present:
+                        connection.exec_driver_sql(
+                            f"ALTER TABLE {table} ADD COLUMN {name} {definition}"
+                        )
             columns = {column["name"] for column in inspect(connection).get_columns("memories")}
             if "encryption_nonce" not in columns:
                 count = connection.execute(text("SELECT count(*) FROM memories")).scalar_one()

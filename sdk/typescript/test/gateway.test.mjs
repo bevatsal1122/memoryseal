@@ -47,6 +47,14 @@ test('signed HTTP: team isolation, ciphertext sharing, rotation, stale writes an
  await assert.rejects(owner.request('POST',`/vault/namespaces/${scope.id}/records/${current.id}/rewrap`,{
   expected_revision:row.revision,key_version:1,envelope:current.envelope}),e=>e.status===409);
 
+ // Batch changes are atomic and remain owner-only; a missing second row rolls back the first.
+ const batchPath=`/vault/namespaces/${scope.id}/rewrap-batch`;
+ const batchRow={id:current.id,expected_revision:current.revision,key_version:1,envelope:current.envelope};
+ await assert.rejects(agent.request('POST',batchPath,{records:[batchRow]}));
+ await assert.rejects(owner.request('POST',batchPath,{records:[batchRow,{...batchRow,id:crypto.randomUUID()}]}),e=>e.status===404);
+ assert.equal((await owner.vaultRecords(scope)).records[0].revision,current.revision);
+ assert.equal((await owner.request('POST',batchPath,{records:[batchRow]})).migrated,1);
+ assert.equal((await owner.request('POST',batchPath,{records:[batchRow]})).migrated,0);
  const nextScope={...scope,active_version:2},second=await epoch(nextScope);
  await owner.rotateVault(scope,second.fingerprint,second.envelopes);
  await assert.rejects(owner.rotateVault(scope,second.fingerprint,second.envelopes),e=>e.status===409);

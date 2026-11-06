@@ -94,6 +94,7 @@ export type VaultRow = EncryptedRecord & {
 export type Agent = {
   id: string;
   signing_address: string;
+  label?: string | null;
   ens_name?: string | null;
   revoked: boolean;
   policy_chain_id?: number | null;
@@ -237,6 +238,9 @@ export class MemorySealClient {
   }
   agentAccess() {
     return this.request("GET", "/agent-access");
+  }
+  setupAgent(input: {request_id: string; signing_address: string; label?: string; namespace: string; operations: ("read" | "write")[]; acceptance: "strict" | "standard"; policy_version: number; ens_name?: string | null; policy_chain_id?: number | null}) {
+    return this.request<{id: string; policy_version: number}>("POST", "/agents/setup", input);
   }
   registerAgent(
     signing_address: string,
@@ -635,21 +639,16 @@ export class MemorySealClient {
     if (page.active_version !== scope.active_version)
       throw new Error("Active key changed; refresh scope");
     const newKey = await this.vaultKey(scope, identity);
-    let migrated = 0;
-    for (const row of page.records) {
+    const records = [];
+    for (const row of page.records.slice(0, 5)) {
       const oldKey = await this.vaultKey(scope, identity, row.key_version);
       const replacement = await rewrapRecord(scope, oldKey, newKey, row);
-      await this.request(
-        "POST",
-        `/vault/namespaces/${scope.id}/records/${row.id}/rewrap`,
-        {
-          expected_revision: row.revision,
-          key_version: scope.active_version,
-          envelope: replacement.envelope,
-        },
-      );
-      migrated++;
+      const entry = {id: row.id, expected_revision: row.revision, key_version: scope.active_version, envelope: replacement.envelope};
+      if (new TextEncoder().encode(JSON.stringify({records: [...records, entry]})).length > 480000) break;
+      records.push(entry);
     }
+    if (page.records.length && !records.length) throw new Error("Record too large for a migration batch");
+    const migrated = records.length ? (await this.request<{migrated: number}>("POST", `/vault/namespaces/${scope.id}/rewrap-batch`, {records})).migrated : 0;
     return { migrated, status: await this.rotationStatus(scope) };
   }
 }

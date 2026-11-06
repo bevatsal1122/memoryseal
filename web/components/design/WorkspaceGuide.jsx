@@ -8,21 +8,14 @@ export default function WorkspaceGuide({
     {
       view: "agents",
       title: "Register an agent",
-      detail: "Give your agent an identity in this workspace.",
+      detail: "Set its identity and collection permissions together.",
       done: agents > 0,
       icon: "◇",
     },
     {
-      view: "permissions",
-      title: "Set its permissions",
-      detail: "Choose a namespace and the operations it can use.",
-      done: capabilities > 0,
-      icon: "⊞",
-    },
-    {
       view: "workbench",
       title: "Create your first memory",
-      detail: "Use a registered agent wallet in the agent console.",
+      detail: "Open the playground with your agent wallet.",
       icon: "▷",
     },
   ];
@@ -57,10 +50,10 @@ export default function WorkspaceGuide({
           <span>
             <b>
               {quarantined
-                ? `${quarantined} memories held for review`
+                ? `${quarantined} memories need review`
                 : "Explore your memories"}
             </b>
-            <small>Inspect content, trust, and provenance</small>
+            <small>Read memories and review exceptions</small>
           </span>
           <span aria-hidden="true">→</span>
         </button>

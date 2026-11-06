@@ -533,6 +533,45 @@ def rewrap(scope_id: str, record_id: str, data: Rewrap, signer: Signer, session:
     return {"id": item.id, "revision": item.revision}
 
 
+class RewrapItem(Rewrap):
+    id: UUID
+
+
+class RewrapBatch(Strict):
+    records: list[RewrapItem] = Field(min_length=1, max_length=5)
+
+
+@router.post("/namespaces/{scope_id}/rewrap-batch")
+def rewrap_batch(scope_id: str, data: RewrapBatch, signer: Signer, session: Database):
+    if len({r.id for r in data.records}) != len(data.records):
+        raise HTTPException(422, "duplicate record")
+    checked = [(r, r.envelope.checked()) for r in data.records]
+    session.execute(text("BEGIN IMMEDIATE"))
+    scope = scope_access(session, scope_id, signer, manage=True)
+    changed = 0
+    for record, envelope in checked:
+        item = session.get(VaultRecord, str(record.id))
+        if not item or item.namespace_id != scope_id:
+            raise HTTPException(404, "record not found")
+        if record.key_version != scope.active_version:
+            raise HTTPException(409, "active key changed; refresh collection")
+        encoded = canonical(envelope)
+        if (
+            item.revision == record.expected_revision + 1
+            and item.key_version == record.key_version
+            and item.envelope_json == encoded
+        ):
+            continue  # exact retry after a lost response
+        if item.revision != record.expected_revision:
+            raise HTTPException(409, "record changed; refresh collection")
+        item.envelope_json, item.key_version = encoded, record.key_version
+        item.revision += 1
+        log(session, scope, signer, "rewrapped", item.id)
+        changed += 1
+    session.commit()
+    return {"migrated": changed}
+
+
 @router.get("/namespaces/{scope_id}/rotation")
 def rotation_status(scope_id: str, signer: Signer, session: Database):
     scope = scope_access(session, scope_id, signer, manage=True)

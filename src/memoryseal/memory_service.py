@@ -988,9 +988,28 @@ def inspect_for_owner(session: Session, *, memory_id: str, owner: str) -> dict:
         )
     )
     session.commit()
+    analysis, analysis_state = stored_analysis(item.analysis_json)
+    writer = session.get(Agent, item.agent_id)
+    review_eligible = bool(
+        writer
+        and not writer.revoked
+        and writer.owner_address == owner
+        and item.source_type == "agent"
+        and item.category not in ("instruction", "authorization_claim")
+        and analysis_state == "available"
+        and analysis["category"] == "observation"
+        and analysis["risk"] == "low"
+        and not analysis_requires_quarantine(analysis)
+        and not is_authorization_claim(content)
+        and (
+            not item.parent_id
+            or item.parent_id in readable_lineage(session, owner, item.namespace, [item.parent_id])
+        )
+    )
     return {
         "id": item.id,
         "content": content,
+        "review_eligible": review_eligible,
         "commitment_salt": base64.b64encode(
             reveal_salt(
                 key_for(owner, item.namespace),

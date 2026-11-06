@@ -41,6 +41,7 @@ if __name__ == "__main__":
         port = validate_environment(os.environ)
     except ValueError as error:
         sys.exit(str(error))
+    os.environ.setdefault("MEMORYSEAL_AUTO_PUBLISH", "true")
     os.execv(
         sys.executable,
         [

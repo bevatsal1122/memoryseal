@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     onchain_executor: str | None = None
     onchain_registry: str | None = None
     require_onchain_memory: bool = False
+    auto_publish: bool = False
     arkiv_private_key: SecretStr | None = None
     arkiv_creator_address: str | None = None
     arkiv_access_key: SecretStr | None = None

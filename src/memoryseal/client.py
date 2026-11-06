@@ -134,6 +134,31 @@ class MemorySealClient:
                 ).raise_for_status()
             return read_json_limited(response, max_bytes=24 * 1024 * 1024)
 
+    def setup_agent(
+        self,
+        signing_address: str,
+        namespace: str,
+        *,
+        operations: list[str],
+        policy_version: int,
+        request_id: str,
+        label: str | None = None,
+        acceptance: str = "strict",
+    ) -> dict:
+        """Atomically register and grant collection access with one signed request."""
+        return self._post(
+            "/agents/setup",
+            {
+                "signing_address": signing_address,
+                "namespace": namespace,
+                "operations": operations,
+                "policy_version": policy_version,
+                "request_id": request_id,
+                "label": label,
+                "acceptance": acceptance,
+            },
+        )
+
     def set_acceptance_rule(
         self, agent_id: str, namespace: str, mode: str, *, policy_version: int
     ) -> dict:

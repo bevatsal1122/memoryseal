@@ -12,9 +12,12 @@ from memoryseal.signatures import InvalidSignature, verify_request
 async def authenticate(request: Request) -> str:
     headers = request.headers
     if headers.get("authorization", "").startswith("Bearer "):
-        if request.method != "GET":
+        if request.method != "GET" and not (
+            request.method == "POST" and request.url.path == "/memory/read"
+        ):
             raise HTTPException(403, "this action requires a wallet signature")
         from memoryseal.browser_sessions import session_signer
+
         return session_signer(request)
     try:
         address = headers["x-memoryseal-address"]

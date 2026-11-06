@@ -12,7 +12,7 @@ from eth_utils import is_address
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select, text, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -53,7 +53,24 @@ from memoryseal.zero_g_verification import valid_pins
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     migrate(engine)
-    yield
+    worker = None
+    if (
+        settings.auto_publish
+        and settings.arkiv_private_key
+        and engine.url.database not in (None, ":memory:")
+    ):
+        from memoryseal.db import SessionLocal
+        from memoryseal.publication_loop import PublicationLoop
+
+        worker = PublicationLoop(SessionLocal, engine.url.database)
+        worker.start()
+    try:
+        yield
+    finally:
+        if worker:
+            import asyncio
+
+            await asyncio.to_thread(worker.stop)
 
 
 app = FastAPI(title="MemorySeal Gateway", version="0.1.0", lifespan=lifespan)
@@ -159,6 +176,7 @@ class AgentRegistration(BaseModel):
     signing_address: str
     policy_chain_id: int | None = Field(default=None, gt=0, le=2**53 - 1, strict=True)
     # Metadata only until ENS resolution is implemented; never used for authentication.
+    label: str | None = Field(default=None, max_length=80)
     ens_name: str | None = Field(default=None, max_length=255)
 
     @field_validator("signing_address")
@@ -183,6 +201,7 @@ def register_agent(
         owner_address=owner,
         signing_address=data.signing_address,
         ens_name=data.ens_name,
+        label=data.label,
         revoked=False,
     )
     session.add(agent)
@@ -203,6 +222,7 @@ def register_agent(
         "owner_address": owner,
         "signing_address": agent.signing_address,
         "ens_name": agent.ens_name,
+        "label": agent.label,
         "policy_chain_id": agent.policy_chain_id,
         "ens_verified": False,
         "revoked": agent.revoked,
@@ -220,6 +240,7 @@ def list_agents(
                 "id": agent.id,
                 "signing_address": agent.signing_address,
                 "ens_name": agent.ens_name,
+                "label": agent.label,
                 "policy_chain_id": agent.policy_chain_id,
                 "ens_verified": False,
                 "revoked": agent.revoked,
@@ -277,6 +298,7 @@ def agent_access(
                 "owner_address": agent.owner_address,
                 "signing_address": agent.signing_address,
                 "ens_name": agent.ens_name,
+                "label": agent.label,
                 "policy_chain_id": agent.policy_chain_id,
                 "revoked": agent.revoked,
                 "policy_version": (
@@ -298,6 +320,24 @@ def agent_access(
             }
             for agent in agents
         ]
+    }
+
+
+@app.get("/workspace-summary")
+def workspace_summary(
+    owner: Annotated[str, Depends(authenticate)],
+    session: Annotated[Session, Depends(get_session)],
+):
+    return {
+        "memories": session.scalar(
+            select(func.count()).select_from(Memory).where(Memory.owner_address == owner)
+        ),
+        "needs_review": session.scalar(
+            select(func.count())
+            .select_from(Memory)
+            .where(Memory.owner_address == owner, Memory.status == "quarantined")
+        ),
+        "auto_publish": settings.auto_publish and bool(settings.arkiv_private_key),
     }
 
 
@@ -758,6 +798,7 @@ def owned_agent(session: Session, agent_id: str, owner: str) -> Agent:
     return agent
 
 
+@app.get("/agents/{agent_id}/observe-ens")
 @app.post("/agents/{agent_id}/observe-ens")
 def observe_ens(
     agent_id: str,
@@ -1047,6 +1088,100 @@ def advance_policy(session: Session, owner: str) -> int:
         .values(version=PolicyState.version + 1)
         .returning(PolicyState.version)
     ).scalar_one()
+
+
+class AgentSetup(AgentRegistration):
+    request_id: UUID
+    namespace: str = Field(min_length=1, max_length=128)
+    operations: list[Literal["read", "write"]] = Field(min_length=1, max_length=2)
+    acceptance: Literal["strict", "standard"] = "strict"
+    policy_version: int = Field(ge=0, strict=True)
+
+
+@app.post("/agents/setup", status_code=201)
+def setup_agent(
+    data: AgentSetup,
+    owner: Annotated[str, Depends(authenticate)],
+    session: Annotated[Session, Depends(get_session)],
+):
+    from memoryseal.models import SetupReceipt
+
+    if data.namespace != data.namespace.strip() or data.namespace == "*":
+        raise HTTPException(422, "an exact collection is required")
+    if len(set(data.operations)) != len(data.operations):
+        raise HTTPException(422, "duplicate operations")
+    if data.policy_chain_id is not None:
+        network(data.policy_chain_id)
+    digest = hashlib.sha256(data.model_dump_json().encode()).hexdigest()
+    session.execute(text("BEGIN IMMEDIATE"))
+    prior = session.get(SetupReceipt, (owner, str(data.request_id)))
+    if prior:
+        if prior.digest != digest:
+            raise HTTPException(409, "setup request ID already used with different content")
+        return json.loads(prior.result_json)
+    session.execute(
+        sqlite_insert(PolicyState).values(owner_address=owner, version=0).on_conflict_do_nothing()
+    )
+    state = session.get(PolicyState, owner)
+    if state.version != data.policy_version:
+        raise HTTPException(409, "permissions changed; refresh and review setup again")
+    if session.scalar(
+        select(Agent).where(
+            Agent.owner_address == owner, Agent.signing_address == data.signing_address
+        )
+    ):
+        raise HTTPException(409, "agent already registered; edit its permissions instead")
+    agent = Agent(
+        id=str(uuid4()),
+        owner_address=owner,
+        signing_address=data.signing_address,
+        label=data.label,
+        ens_name=data.ens_name,
+        policy_chain_id=data.policy_chain_id,
+    )
+    session.add(agent)
+    session.flush()
+    version = advance_policy(session, owner)
+    for operation in data.operations:
+        session.add(
+            Capability(
+                id=str(uuid4()),
+                agent_id=agent.id,
+                operation=operation,
+                resource=data.namespace,
+                policy_version=version,
+            )
+        )
+    session.add(AcceptanceRule(agent_id=agent.id, namespace=data.namespace, mode=data.acceptance))
+    session.add(
+        AuditEvent(
+            id=str(uuid4()),
+            owner_address=owner,
+            actor_address=owner,
+            event_type="agent_setup",
+            resource=agent.id,
+            decision="allowed",
+            reason=json.dumps(
+                {
+                    "namespace": data.namespace,
+                    "operations": data.operations,
+                    "acceptance": data.acceptance,
+                }
+            ),
+            policy_version=version,
+        )
+    )
+    result = {"id": agent.id, "policy_version": version}
+    session.add(
+        SetupReceipt(
+            owner_address=owner,
+            request_id=str(data.request_id),
+            digest=digest,
+            result_json=json.dumps(result),
+        )
+    )
+    session.commit()
+    return result
 
 
 @app.post("/agents/{agent_id}/revoke")

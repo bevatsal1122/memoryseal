@@ -1665,3 +1665,30 @@ textarea:focus {
 @media (prefers-reduced-motion: reduce) {
   .sidebar .nav-item { transition: none; }
 }
+
+/* Compact workflows: detail is available without dominating the primary task. */
+.workspace .guided-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.workspace .guided-form { max-width: 720px; }
+.workspace .row { align-items: flex-start; gap: 20px; }
+.workspace .row > div { min-width: 0; }
+.workspace small, .workspace code { overflow-wrap: anywhere; }
+.workspace .memory-proof { margin-top: 12px; padding: 12px 16px; }
+.workspace .memory-proof pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; max-height: 340px; overflow: auto; }
+.workspace .memory-proof > summary { font-size: 14px; }
+.workspace details > summary { cursor: pointer; }
+.workspace .proof-event { padding: 12px 0; border-top: 1px solid var(--muted); }
+.workspace .recipient-picker { padding: 16px 0; }
+.workspace .recipient-picker .row { padding: 8px 0; }
+.workspace [hidden] { display: none !important; }
+.workspace .operation-tabs button { text-transform: capitalize; }
+.workspace input[type="checkbox"] { width: auto; margin-right: 8px; }
+.workspace .connection-summary { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+@media (max-width: 650px) {
+  .workspace .row { flex-direction: column; }
+  .workspace .inline { flex-wrap: wrap; }
+  .workspace .row button { max-width: 100%; }
+}
+
+.workspace .guided-form label { display: block; margin-top: 16px; }
+.workspace .guided-form input:not([type="checkbox"]), .workspace .guided-form select { display: block; width: 100%; box-sizing: border-box; }
+.workspace .guided-form .inline label { display: inline-flex; align-items: center; gap: 8px; }

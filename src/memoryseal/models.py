@@ -27,6 +27,7 @@ class Agent(Base):
     owner_address: Mapped[str] = mapped_column(String, index=True)
     signing_address: Mapped[str] = mapped_column(String, index=True)
     policy_chain_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    label: Mapped[str | None] = mapped_column(String, nullable=True)
     ens_name: Mapped[str | None] = mapped_column(String, nullable=True)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
@@ -138,6 +139,9 @@ class ProvenanceOutbox(Base):
     state: Mapped[str] = mapped_column(String, default="pending")
     creator_address: Mapped[str | None] = mapped_column(String, nullable=True)
     attempt_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    publishing_started_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    next_check_at: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    check_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     entity_key: Mapped[str | None] = mapped_column(String, nullable=True)
     transaction_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
@@ -207,6 +211,9 @@ class VaultOutbox(Base):
     state: Mapped[str] = mapped_column(String, default="pending")
     creator_address: Mapped[str | None] = mapped_column(String, nullable=True)
     attempt_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    publishing_started_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    next_check_at: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    check_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     entity_key: Mapped[str | None] = mapped_column(String, nullable=True)
     transaction_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
@@ -221,3 +228,11 @@ class BrowserCredential(Base):
     expires_at: Mapped[int] = mapped_column(Integer, index=True)
     kind: Mapped[str] = mapped_column(String)
     message: Mapped[str] = mapped_column(String)
+
+
+class SetupReceipt(Base):
+    __tablename__ = "setup_receipts"
+    owner_address: Mapped[str] = mapped_column(String, primary_key=True)
+    request_id: Mapped[str] = mapped_column(String, primary_key=True)
+    digest: Mapped[str] = mapped_column(String)
+    result_json: Mapped[str] = mapped_column(String)

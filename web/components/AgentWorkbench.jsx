@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { parseUnits } from "viem";
+import { capabilityActive } from "../lib/expiry.mjs";
 import { verifyMemoryCommitment } from "../lib/commitment.mjs";
 import {
   executeProtectedTransfer,
@@ -20,6 +22,8 @@ export default function AgentWorkbench({ account, request, signal }) {
   const [parentId, setParentId] = useState("");
   const [attempt, setAttempt] = useState(null);
   const [written, setWritten] = useState(null);
+  const [savedDraft, setSavedDraft] = useState(null);
+  const [tokenDecimals, setTokenDecimals] = useState(null);
   const [ack, setAck] = useState(null);
   const [ackId, setAckId] = useState(null);
   const [page, setPage] = useState(null);
@@ -62,6 +66,50 @@ export default function AgentWorkbench({ account, request, signal }) {
       setBusy(false);
     }
   }
+  useEffect(() => { run(load); }, [account]);
+  const collections = [...new Set((selected?.capabilities || []).filter(c => capabilityActive(c) && c.operation === (operation === "read" ? "read" : "write")).map(c => c.resource))];
+  useEffect(() => {
+    if (!attempt && collections.length && !collections.includes(namespace)) {
+      let remembered;
+      try { remembered = sessionStorage.getItem(`collection:${account}:${agentId}`); } catch {}
+      setNamespace(collections.includes(remembered) ? remembered : collections[0]);
+    }
+  }, [agentId, operation, collections.join("|"), !!attempt]);
+  useEffect(() => { if (agentId && namespace) {try {sessionStorage.setItem(`collection:${account}:${agentId}`, namespace);} catch {}} }, [account, agentId, namespace]);
+  async function loadContracts() {
+    const [r, list] = await Promise.all([call("GET", "/integrations/readiness"), call("GET", "/chains")]);
+    setNetworks(list.chains);
+    setChain(p => ({...p, registry:r.onchain_registry || "", executor:r.onchain_executor || "", chainId:String(r.onchain_chain_id || 11155111)}));
+  }
+  useEffect(() => { if (operation === "transfer" && !networks.length) run(loadContracts); }, [operation]);
+  async function decimals() {
+    if (!/^0x[0-9a-fA-F]{40}$/.test(chain.token)) throw new Error("Choose a valid token address.");
+    if (BigInt(await window.ethereum.request({method:"eth_chainId"})) !== BigInt(chain.chainId)) throw new Error("Switch your wallet to the selected network.");
+    const raw = await window.ethereum.request({method:"eth_call", params:[{to:chain.token, data:"0x313ce567"}, "latest"]});
+    if (!/^0x[0-9a-fA-F]{64}$/.test(raw) || BigInt(raw) > 36n) throw new Error("Could not verify token decimals.");
+    return Number(BigInt(raw));
+  }
+  useEffect(() => {
+    let active = true; setTokenDecimals(null);
+    if (/^0x[0-9a-fA-F]{40}$/.test(chain.token)) decimals().then(d => {if(active)setTokenDecimals(d);}).catch(() => {});
+    return () => {active = false;};
+  }, [chain.token, chain.chainId]);
+  async function preparedChainArgs() {
+    const d = await decimals();
+    if (!/^\d+(\.\d+)?$/.test(chain.amount) || (chain.amount.split(".")[1]?.length || 0) > d) throw new Error("Enter a positive amount within the token’s decimal precision.");
+    const policyVersion = await onchainVersion(window.ethereum, chain.registry, chain.chainId, selected.owner_address);
+    return {...chainArgs(), amount:parseUnits(chain.amount, d).toString(), policyVersion};
+  }
+  useEffect(() => {
+    if (!chainResult?.transactionHash || !["pending", "submitted"].includes(chainResult.status)) return;
+    let active = true;
+    const timer = setInterval(async () => {
+      try {const status = await onchainReceipt(window.ethereum, chainResult.executor, chainResult.chainId, chainResult.transactionHash, chainResult.agent);
+        if (active) setChainResult(p => p?.transactionHash === chainResult.transactionHash ? {...p, status} : p);
+      } catch {}
+    }, 4000);
+    return () => {active = false; clearInterval(timer);};
+  }, [chainResult?.transactionHash, chainResult?.status]);
   async function load() {
     const value = await call("GET", "/agent-access");
     setAccess(value);
@@ -78,7 +126,8 @@ export default function AgentWorkbench({ account, request, signal }) {
       request_id: crypto.randomUUID(),
     };
     setAttempt(body);
-    setWritten(await call("POST", "/memory/write", body));
+    const result = await call("POST", "/memory/write", body);
+    setWritten(result); setSavedDraft(body); setAttempt(null); setContent(""); setParentId(""); setAck(null); setAckId(null);
   }
   async function read(offset = 0, scope = { agentId, namespace }) {
     const value = await call("POST", "/memory/read", {
@@ -109,15 +158,11 @@ export default function AgentWorkbench({ account, request, signal }) {
     <section className="agent-workbench" data-operation={operation}>
       <div className="section-head">
         <div>
-          <h2>Run the full workflow</h2>
-          <p className="muted">
-            Connect the Browser, Research, or Finance wallet to act as that
-            agent. Owner wallets manage permissions in the other views. Private
-            keys never belong in these forms.
-          </p>
+          <h2>Agent playground</h2>
+          <p className="muted">Save and read memories as the connected agent.</p>
         </div>
         <button disabled={busy} onClick={() => run(load)}>
-          Load my agent access
+          Refresh access
         </button>
       </div>
       {error && (
@@ -148,7 +193,7 @@ export default function AgentWorkbench({ account, request, signal }) {
           >
             {access.agents.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.ens_name || a.id}
+                {a.label || a.ens_name || a.id.slice(0, 8)}
                 {a.revoked ? " · revoked" : ""}
               </option>
             ))}
@@ -157,7 +202,7 @@ export default function AgentWorkbench({ account, request, signal }) {
       )}
       {selected && (
         <>
-          <div className="detail">
+          <details className="detail"><summary>Agent permissions</summary>
             <b>{selected.revoked ? "Agent revoked" : "Registered agent"}</b>
             <p>
               Owner: {selected.owner_address} · local policy{" "}
@@ -177,7 +222,7 @@ export default function AgentWorkbench({ account, request, signal }) {
                 </li>
               ))}
             </ul>
-          </div>
+          </details>
           <nav className="operation-tabs" aria-label="Agent operations">
             {[
               ["write", "Write memory"],
@@ -196,26 +241,20 @@ export default function AgentWorkbench({ account, request, signal }) {
           </nav>
           <div className="workbench-grid">
             <article className="operation-write">
-              <h3>1. Write a memory</h3>
-              <p className="muted">
-                Inference is not independently verified. Use synthetic content while
-                verification is incomplete; a write may be quarantined.
-              </p>
+              <h3>New memory</h3>
+
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   run(write);
                 }}
               >
-                <label htmlFor="wb-namespace">Namespace</label>
-                <input
-                  id="wb-namespace"
-                  required
-                  disabled={!!attempt}
-                  value={namespace}
-                  onChange={(e) => setNamespace(e.target.value)}
-                  maxLength={128}
-                />
+                <label htmlFor="wb-namespace">Collection</label>
+                <select id="wb-namespace" required disabled={!!attempt} value={namespace} onChange={e => setNamespace(e.target.value)}>
+                  {!collections.includes(namespace) && <option value={namespace}>{namespace || "Choose collection"}</option>}
+                  {collections.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+                {!collections.length && <p>No active write permission. Ask the owner to grant collection access.</p>}
                 <label htmlFor="wb-content">Memory content</label>
                 <textarea
                   id="wb-content"
@@ -226,6 +265,7 @@ export default function AgentWorkbench({ account, request, signal }) {
                   maxLength={32768}
                   rows={5}
                 />
+                <details><summary>Advanced: source and related memory</summary>
                 <label htmlFor="wb-source">Source</label>
                 <select
                   id="wb-source"
@@ -244,12 +284,9 @@ export default function AgentWorkbench({ account, request, signal }) {
                   onChange={(e) => setParentId(e.target.value)}
                   placeholder="Link a new version to its predecessor"
                 />
-                <button disabled={busy || selected.revoked || !!written}>
-                  {written
-                    ? "Memory recorded"
-                    : attempt
-                      ? "Retry the same write"
-                      : "Sign and write"}
+                </details>
+                <button disabled={busy || selected.revoked || !collections.length}>
+                  {busy ? "Saving…" : attempt ? "Retry same save" : "Save memory"}
                 </button>
               </form>
               {attempt && (
@@ -264,7 +301,9 @@ export default function AgentWorkbench({ account, request, signal }) {
               )}
               {written && (
                 <div className="detail">
-                  <b>{written.status}</b>
+                  <b role="status">{written.status === "accepted" ? "Memory saved" : "Saved — needs owner review"}</b>
+                  <details><summary>Additional proof (optional)</summary>
+                  <p>Two additional wallet signatures check the saved content and acknowledge its fingerprint. This is not required to save a memory.</p>
                   <p>Memory ID: {written.id}</p>
                   <p>
                     Readable at write time:{" "}
@@ -283,7 +322,7 @@ export default function AgentWorkbench({ account, request, signal }) {
                           opening.id !== written.id ||
                           opening.commitment !== written.commitment ||
                           !(await verifyMemoryCommitment(
-                            attempt.content,
+                            savedDraft.content,
                             opening.commitment_salt,
                             written.commitment,
                           ))
@@ -311,34 +350,19 @@ export default function AgentWorkbench({ account, request, signal }) {
                   </button>
                   {ack && (
                     <p>
-                      Signed acknowledgement queued. The owner can publish it
-                      from the memory’s provenance events.
+                      Signed acknowledgement queued for publication.
                     </p>
                   )}
-                  <button
-                    disabled={busy}
-                    onClick={() => {
-                      setAttempt(null);
-                      setWritten(null);
-                      setAck(null);
-                      setAckId(null);
-                      setContent("");
-                      setParentId("");
-                    }}
-                  >
-                    Start a new write
-                  </button>
+                  </details>
                 </div>
               )}
             </article>
             <article className="operation-read">
-              <h3>2. Read shared memories</h3>
+              <h3>Shared memories</h3>
               <p className="muted">
-                Choose the namespace you want to read. Quarantined records
-                remain withheld. Unverified observations require explicit owner
-                review before sharing; read permission is still required.
+                Read shared memories in this collection. Items held for review stay private.
               </p>
-              <label htmlFor="wb-read-namespace">Namespace</label>
+              <label htmlFor="wb-read-namespace">Collection</label>
               <input
                 id="wb-read-namespace"
                 value={namespace}
@@ -355,7 +379,7 @@ export default function AgentWorkbench({ account, request, signal }) {
                 disabled={busy || selected.revoked}
                 onClick={() => run(() => read())}
               >
-                Sign and read namespace
+                Read memories
               </button>
               {page && (
                 <div className="detail">
@@ -383,7 +407,7 @@ export default function AgentWorkbench({ account, request, signal }) {
               )}
             </article>
             <article className="operation-simulate">
-              <h3>3. Check local transfer permission</h3>
+              <h3>Permission check</h3>
               <p className="muted">
                 A simulation does not send tokens. Local permissions and onchain
                 permissions are separate.
@@ -442,7 +466,7 @@ export default function AgentWorkbench({ account, request, signal }) {
             </article>
           </div>
           <article className="detail operation-transfer">
-            <h3>4. Protected onchain transfer</h3>
+            <h3>Protected transfer</h3>
             <p>
               Connect the finance agent wallet on Sepolia. The owner must first
               set the onchain grant and token allowance under Integrations.
@@ -451,23 +475,6 @@ export default function AgentWorkbench({ account, request, signal }) {
               transfer. If submission is uncertain, check wallet activity before
               trying again.
             </p>
-            <button
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  const r = await call("GET", "/integrations/readiness");
-                  setNetworks((await call("GET", "/chains")).chains);
-                  setChain((p) => ({
-                    ...p,
-                    registry: r.onchain_registry || "",
-                    executor: r.onchain_executor || "",
-                    chainId: String(r.onchain_chain_id || 11155111),
-                  }));
-                })
-              }
-            >
-              Load configured contracts
-            </button>
             <label>
               Configured chain
               <select
@@ -502,9 +509,9 @@ export default function AgentWorkbench({ account, request, signal }) {
                 ["chainId", "Expected chain ID"],
                 ["token", "Token address"],
                 ["recipient", "Recipient"],
-                ["amount", "Amount in base units"],
+                ["amount", "Token amount"],
                 ["policyVersion", "Onchain policy version"],
-              ].map(([key, label]) => (
+              ].filter(([key]) => !["registry", "executor", "chainId", "policyVersion"].includes(key)).map(([key, label]) => (
                 <label key={key}>
                   {label}
                   <input
@@ -514,6 +521,8 @@ export default function AgentWorkbench({ account, request, signal }) {
                 </label>
               ))}
             </div>
+            <p>{tokenDecimals === null ? "Token decimals will be verified before sending." : `Token precision: ${tokenDecimals} decimals`} Simulation runs automatically before wallet confirmation.</p>
+            <details><summary>Advanced checks</summary>
             <div className="inline">
               <button
                 disabled={busy}
@@ -541,7 +550,7 @@ export default function AgentWorkbench({ account, request, signal }) {
                   run(async () =>
                     setChainResult(
                       await executeProtectedTransfer(window.ethereum, {
-                        ...chainArgs(),
+                        ...(await preparedChainArgs()),
                         simulateOnly: true,
                       }),
                     ),
@@ -550,6 +559,7 @@ export default function AgentWorkbench({ account, request, signal }) {
               >
                 Simulate onchain call
               </button>
+            </div></details><div className="inline">
               <button
                 disabled={
                   busy || selected.revoked || !!chainResult?.transactionHash
@@ -558,7 +568,7 @@ export default function AgentWorkbench({ account, request, signal }) {
                   run(async () => {
                     const transactionHash = await executeProtectedTransfer(
                       window.ethereum,
-                      chainArgs(),
+                      await preparedChainArgs(),
                     );
                     setChainResult({
                       transactionHash,

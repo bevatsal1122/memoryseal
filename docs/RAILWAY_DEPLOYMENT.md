@@ -50,7 +50,7 @@ Keep private keys, encryption keys and provider credentials **only in backend va
 
 The Docker image includes ENS/Arkiv Node adapters and freshly compiled policy/executor artifacts. It does **not** include the operator-reviewed 0G bridge or `pcverify` binaries. macOS executable paths will not work inside Linux. Strict inference remains fail-closed unless its required Linux verifier is separately provided. Hosting does not fix the previously discussed provider baseline/attestation limitation. If retaining the temporary non-private test route, deliberately reproduce its existing trust-mode settings and use synthetic content; do not weaken production verification merely to make a healthcheck pass.
 
-The API's explicit event controls can publish/reconcile records. This deployment does not automatically start an outbox worker or resend uncertain events.
+The deployment startup script defaults `MEMORYSEAL_AUTO_PUBLISH=true`. With an Arkiv publisher configured, a background worker publishes queued public event metadata and checks uncertain submissions without resending them. It uses durable backoff and an OS lock on the database volume. Set `MEMORYSEAL_AUTO_PUBLISH=false` to retain manual publication. This also processes existing pending events; it never publishes plaintext memory content. Keep one replica. Schema version 13 adds scheduling fields and guided setup receipts; back up the volume before this upgrade.
 
 ## 5. Deploy and obtain the gateway URL
 

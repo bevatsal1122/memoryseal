@@ -74,3 +74,9 @@ npm test --prefix sdk/typescript          # crypto test; HTTP test needs isolate
 ```
 
 See [the full system guide](../../docs/TEAM_VAULT_MULTICHAIN.md) for the browser walkthrough and deployment configuration.
+
+### Guided setup and batch rotation
+
+`setupAgent` atomically registers a personal agent with a label, initial read/write collection permissions and an explicit strict/standard acceptance choice. Supply a UUID `request_id` and current `policy_version`; reuse the identical payload after an uncertain response. It does not grant transfer permissions.
+
+`migrateVaultBatch` now rewraps up to five records locally and submits one signed atomic batch. Scope, active epoch and revision checks remain enforced. Call again while `status.remaining` is nonzero. Each batch requires one API signature; epoch creation/rotation retains its separate manifest signature.

@@ -1,4 +1,5 @@
 "use client";
+import { proofLabel } from "./MemoryProof";
 import { signedRequest } from "../lib/gateway.mjs";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -42,6 +43,12 @@ export default function TeamVaultPanel({ account, signal, mode }) {
     });
     return client;
   }, [account, signal]);
+  const [agentOptions, setAgentOptions] = useState([]);
+  const [recipient, setRecipient] = useState("");
+  const [recipientPin, setRecipientPin] = useState("");
+  const [pinConfirmed, setPinConfirmed] = useState(false);
+  const [setupRegistered, setSetupRegistered] = useState(false);
+  const [teamTab, setTeamTab] = useState("members");
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
@@ -85,6 +92,19 @@ export default function TeamVaultPanel({ account, signal, mode }) {
   const [pendingKeyStale, setPendingKeyStale] = useState(false);
   const [provenance, setProvenance] = useState({});
   const scope = scopes.find((s) => s.id === scopeId);
+  useEffect(() => { run(async () => {
+    if (mode === "teams") await loadOrgs();
+    else {
+      await loadScopes();
+      const access = await sdk.request("GET", "/agent-access");
+      setAgentOptions(access.agents.filter(a => !a.revoked));
+      if (access.agents.length === 1) setWriter(access.agents[0].id);
+    }
+  }); }, [account, mode]);
+  useEffect(() => { if (scope && identity) run(() => readRows()); }, [scopeId, identity]);
+  useEffect(() => {
+    if (identity && fingerprint) setPins(p => p || `${account.toLowerCase()} ${fingerprint}`);
+  }, [identity, fingerprint, account]);
   async function run(fn) {
     setBusy(true);
     setError("");
@@ -99,7 +119,9 @@ export default function TeamVaultPanel({ account, signal, mode }) {
     }
   }
   async function loadOrgs() {
-    setOrgs((await sdk.organizations()).organizations);
+    const list = (await sdk.organizations()).organizations;
+    setOrgs(list);
+    if (list.length === 1 || (org && list.some(o => o.id === org.id))) await loadOrg(org?.id || list[0].id);
   }
   async function loadOrg(id) {
     setOrg(await sdk.organization(id));
@@ -107,11 +129,15 @@ export default function TeamVaultPanel({ account, signal, mode }) {
   async function loadScopes() {
     const list = (await sdk.vaultNamespaces()).namespaces;
     setScopes(list);
+    setScopeId(current => list.some(s => s.id === current) ? current : list.length === 1 ? list[0].id : "");
     return list;
   }
   async function installIdentity(i) {
     setIdentity(i);
-    setFingerprint(await sha256(unb64(i.publicKey)));
+    const nextFingerprint = await sha256(unb64(i.publicKey));
+    setFingerprint(nextFingerprint);
+    setPins(`${account.toLowerCase()} ${nextFingerprint}`);
+    setSetupRegistered(false);
     setRows([]);
   }
   function download(value) {
@@ -177,8 +203,8 @@ export default function TeamVaultPanel({ account, signal, mode }) {
       <div className="section-head">
         <h2>
           {mode === "teams"
-            ? "Organization policies"
-            : "Client-encrypted memory"}
+            ? "Your team"
+            : "Private vault"}
         </h2>
       </div>
       {error && (
@@ -193,16 +219,11 @@ export default function TeamVaultPanel({ account, signal, mode }) {
       )}
       {mode === "teams" ? (
         <>
-          <p>
-            One organization belongs to one owner wallet. It includes that
-            wallet’s existing gateway agents and policies. Admins manage gateway
-            grants; auditors see team metadata. Neither role can sign the
-            owner’s onchain transactions.
-          </p>
+          <p>Invite teammates and manage their access.</p>
           <div className="inline">
             <input
-              aria-label="Organization name"
-              placeholder="Organization name"
+              aria-label="Team name"
+              placeholder="Team name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -215,10 +236,10 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                 })
               }
             >
-              Create organization
+              Create team
             </button>
             <button disabled={busy} onClick={() => run(loadOrgs)}>
-              Load my organizations
+              Refresh teams
             </button>
           </div>
           <label>
@@ -244,13 +265,14 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                 <p>
                   Owner: {org.owner_address} · membership version {org.version}
                 </p>
-                {org.members.map((m) => (
+                {teamTab === "members" && org.members.map((m) => (
                   <p key={m.address}>
                     {m.address} · {m.role}
                   </p>
                 ))}
               </div>
-              {org.role === "owner" && (
+              <nav className="operation-tabs" aria-label="Team sections">{["members", "agents", "permissions"].map(tab => <button key={tab} aria-current={teamTab === tab ? "page" : undefined} onClick={() => setTeamTab(tab)}>{tab}</button>)}</nav>
+              {org.role === "owner" && teamTab === "members" && (
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -277,12 +299,12 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                     <option>admin</option>
                     <option>remove</option>
                   </select>
-                  <button disabled={busy}>Sign membership change</button>
+                  <button disabled={busy}>Save member</button>
                 </form>
               )}
               {org.role !== "auditor" && (
                 <>
-                  <h3>Register an agent</h3>
+                  <div hidden={teamTab !== "agents"}><h3>Add team agent</h3>
                   <div className="inline">
                     <input
                       aria-label="Organization agent wallet"
@@ -302,7 +324,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                       Register
                     </button>
                   </div>
-                  <h3>Grant a capability</h3>
+                  </div><div hidden={teamTab !== "permissions"}><h3>Collection permissions</h3>
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -367,12 +389,13 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                         }
                       />
                     )}
-                    <button disabled={busy}>Sign grant</button>
+                    <button disabled={busy}>Save permission</button>
                   </form>
+                  </div>
                 </>
               )}
-              <h3>Agents and grants</h3>
-              {org.agents.map((a) => (
+              {teamTab !== "members" && <h3>{teamTab === "agents" ? "Team agents" : "Active permissions"}</h3>}
+              {teamTab === "agents" && org.agents.map((a) => (
                 <div className="row" key={a.id}>
                   <span>
                     {a.signing_address} · {a.revoked ? "revoked" : "active"}
@@ -392,7 +415,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                   )}
                 </div>
               ))}
-              {org.capabilities.map((c) => (
+              {teamTab === "permissions" && org.capabilities.map((c) => (
                 <div className="row" key={c.id}>
                   <span>
                     {c.operation} · {c.resource} · {c.max_amount || "namespace"}{" "}
@@ -422,12 +445,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
         </>
       ) : (
         <>
-          <p>
-            Content is encrypted and decrypted in this browser. The gateway
-            stores ciphertext and metadata, and does not send these records to
-            0G. Release requires a person to inspect the decrypted content.
-            Existing gateway-encrypted memories remain in Memories.
-          </p>
+          <p>Only people with a key can read this content. Sharing requires review; the server cannot classify encrypted memories.</p>
           <div className="vault-progress" aria-label="Encryption setup status">
             <span className={identity ? "complete" : ""}>
               {identity ? "✓" : "01"} Identity{" "}
@@ -442,8 +460,8 @@ export default function TeamVaultPanel({ account, signal, mode }) {
               {scope ? "Namespace selected" : "Choose a namespace"}
             </span>
           </div>
-          <details open>
-            <summary>1. Unlock your encryption identity</summary>
+          <details open={!identity || !backedUp}>
+            <summary>{identity ? "Vault unlocked · key and backup settings" : "Unlock or set up your vault"}</summary>
             <p>
               Use a separate encryption identity for each wallet. Keep the
               encrypted backup and passphrase: refreshing clears the in-memory
@@ -459,44 +477,15 @@ export default function TeamVaultPanel({ account, signal, mode }) {
               onChange={(e) => setPassword(e.target.value)}
             />
             <div className="inline">
-              <button
-                disabled={busy || !!identity}
-                onClick={() =>
-                  run(async () => {
-                    await installIdentity(await generateIdentity());
-                    setBackedUp(false);
-                  })
-                }
-              >
-                Generate encryption identity
-              </button>
-              <button
-                disabled={busy || !identity || password.length < 12}
-                onClick={() =>
-                  run(async () => {
-                    download(await exportIdentity(identity, password));
-                    setBackedUp(true);
-                    setNotice(
-                      "Encrypted backup downloaded. Keep it and its passphrase separate.",
-                    );
-                  })
-                }
-              >
-                Download encrypted backup
-              </button>
-              <button
-                disabled={busy || !identity || !backedUp}
-                onClick={() =>
-                  run(async () => {
-                    await sdk.registerEncryptionIdentity(identity.publicKey);
-                    setNotice(
-                      "Public encryption identity registered. Share only its fingerprint.",
-                    );
-                  })
-                }
-              >
-                Register public identity
-              </button>
+              <button disabled={busy || password.length < 12 || setupRegistered} onClick={() => run(async () => {
+                const nextIdentity = identity || await generateIdentity();
+                await installIdentity(nextIdentity);
+                if (!backedUp) { download(await exportIdentity(nextIdentity, password)); setBackedUp(true); }
+                await sdk.registerEncryptionIdentity(nextIdentity.publicKey);
+                setSetupRegistered(true);
+                setNotice("Vault identity registered. Keep your downloaded backup and passphrase safe.");
+              })}>{setupRegistered ? "Identity registered" : "Create backup and register identity"}</button>
+              {identity && <button disabled={busy || password.length < 12} onClick={() => run(async () => {download(await exportIdentity(identity, password)); setBackedUp(true);})}>Download backup again</button>}
             </div>
             <label>
               Restore encrypted backup
@@ -530,6 +519,8 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                   setPassword("");
                   setFingerprint("");
                   setBackedUp(false);
+                  setSetupRegistered(false);
+                  setPins("");
                 }}
               >
                 Lock encryption identity
@@ -543,7 +534,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
           </details>
           <details>
             <summary>
-              2. Create a namespace or prepare rotation recipients
+              Create a private collection or manage recipients
             </summary>
             <p>
               Each line: wallet address, then its public-key fingerprint
@@ -566,15 +557,15 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                 onChange={(e) => setNamespace(e.target.value)}
               />
             </label>
-            <label>
-              Verified recipients
-              <textarea
-                rows={4}
-                value={pins}
-                onChange={(e) => setPins(e.target.value)}
-                placeholder="0x... fingerprint"
-              />
-            </label>
+            <div className="recipient-picker">
+              <h3>People with a key</h3>
+              {pins.trim().split(/\n+/).filter(Boolean).map(line => <div className="row" key={line}><small>{line.split(" ")[0]}</small><button disabled={busy} onClick={() => setPins(p => p.split("\n").filter(l => l !== line).join("\n"))}>Remove</button></div>)}
+              <label htmlFor="vault-recipient">Recipient wallet</label>
+              <input id="vault-recipient" value={recipient} onChange={e => {setRecipient(e.target.value); setRecipientPin(""); setPinConfirmed(false);}} placeholder="0x…" />
+              <button disabled={busy || !/^0x[0-9a-fA-F]{40}$/.test(recipient)} onClick={() => run(async () => {const result = await sdk.encryptionIdentity(recipient); setRecipientPin(await sha256(unb64(result.public_key))); setPinConfirmed(false);})}>Look up public identity</button>
+              {recipientPin && <><small>Fingerprint: {recipientPin}</small><label><input type="checkbox" checked={pinConfirmed} onChange={e => setPinConfirmed(e.target.checked)} /> I verified this fingerprint with the recipient.</label><button disabled={busy || !pinConfirmed} onClick={() => {setPins(p => [...p.split("\n").filter(l => l && !l.startsWith(recipient.toLowerCase() + " ")), `${recipient.toLowerCase()} ${recipientPin}`].join("\n")); setRecipient(""); setRecipientPin(""); setPinConfirmed(false);}}>Add recipient</button></>}
+              <details><summary>Advanced recipient list</summary><textarea aria-label="Verified recipient addresses and fingerprints" value={pins} onChange={e => setPins(e.target.value)} rows={3} /></details>
+            </div>
             <button
               disabled={
                 busy ||
@@ -597,11 +588,11 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                 })
               }
             >
-              Create encrypted namespace
+              Create private collection
             </button>
           </details>
           <button disabled={busy} onClick={() => run(loadScopes)}>
-            Load accessible namespaces
+            Refresh collections
           </button>
           <select
             aria-label="Encrypted namespace"
@@ -630,13 +621,8 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                 <article>
                   <h3>Write an encrypted observation</h3>
                   <label>
-                    Agent registration ID
-                    <input
-                      disabled={!!pending}
-                      value={writer}
-                      onChange={(e) => setWriter(e.target.value)}
-                      placeholder="UUID from Agent console"
-                    />
+                    Agent
+                    <select disabled={!!pending} value={writer} onChange={e => setWriter(e.target.value)}><option value="">Choose agent</option>{agentOptions.filter(a => a.owner_address.toLowerCase() === scope.owner_address.toLowerCase()).map(a => <option key={a.id} value={a.id}>{a.label || a.ens_name || a.signing_address}</option>)}</select>
                   </label>
                   <label>
                     Private content
@@ -681,7 +667,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                   >
                     {pending
                       ? "Retry exact encrypted write"
-                      : "Encrypt locally and sign write"}
+                      : "Save private memory"}
                   </button>
                   {pending && pendingKeyStale && (
                     <button
@@ -726,7 +712,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                     disabled={busy || !identity}
                     onClick={() => run(() => readRows())}
                   >
-                    Fetch and decrypt locally
+                    Refresh memories
                   </button>
                   <p>
                     Agents receive only released records and need current
@@ -735,7 +721,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                   </p>
                   {scope.can_manage && (
                     <>
-                      <h3>Online key rotation</h3>
+                      <details><summary>Security · rotate encryption key</summary>
                       <p>
                         The owner updates recipients above and signs a fresh key
                         version. New writes use it immediately; migrate old
@@ -778,7 +764,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                           })
                         }
                       >
-                        Migrate next batch
+                        Migrate next batch (one signature)
                       </button>
                       <button
                         disabled={busy}
@@ -788,7 +774,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                           )
                         }
                       >
-                        Check rotation progress
+                        Refresh progress
                       </button>
                       {rotation && (
                         <p>
@@ -796,6 +782,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                           {rotation.remaining} records still use older keys
                         </p>
                       )}
+                      </details>
                     </>
                   )}
                 </article>
@@ -838,7 +825,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                           })
                         }
                       >
-                        Sign release
+                        Allow sharing
                       </button>
                       <button
                         disabled={busy}
@@ -851,6 +838,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                       >
                         Quarantine
                       </button>
+                      <details><summary>Proof and recovery</summary>
                       <p>
                         Public provenance contains commitments and lifecycle
                         metadata, never content or encrypted key envelopes.
@@ -873,7 +861,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                       {provenance[row.id]?.map((e) => (
                         <div key={e.id}>
                           <small>
-                            {e.event_type} · {e.state} · {e.entity_key || e.id}
+                            {e.event_type.replaceAll("_", " ")} · {proofLabel(e.state)} · {e.entity_key || e.id}
                           </small>
                           {["pending", "uncertain", "published"].includes(
                             e.state,
@@ -914,6 +902,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                           )}
                         </div>
                       ))}
+                      </details>
                     </>
                   )}
                 </article>

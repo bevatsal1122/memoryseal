@@ -20,7 +20,7 @@ async function json(response) {
   return body;
 }
 
-export async function browserRead({ account, path, api, audience, wallet, signal }) {
+export async function browserRead({ account, path, api, audience, wallet, signal, method = "GET", payload }) {
   if (!path.startsWith("/") || path.startsWith("//") || path.includes("#")) throw new Error("Invalid request path");
   const key = `${api}|${audience}|${account.toLowerCase()}`;
   const currentGeneration = generation;
@@ -68,8 +68,8 @@ export async function browserRead({ account, path, api, audience, wallet, signal
       }
     }
     check();
-    const response = await fetch(api + path, { signal, redirect: "error", cache: "no-store",
-      headers: { Authorization: `Bearer ${entry.token}` },
+    const response = await fetch(api + path, { method, body: payload === undefined ? undefined : JSON.stringify(payload), signal, redirect: "error", cache: "no-store",
+      headers: { Authorization: `Bearer ${entry.token}`, ...(payload === undefined ? {} : { "Content-Type": "application/json" }) },
     });
     check();
     if (response.status === 401 && attempt === 0) {

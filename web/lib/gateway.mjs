@@ -21,7 +21,7 @@ export function gatewayOrigin(api, page = globalThis.location) {
 export async function signedRequest({ account, method, path, payload, api, audience, wallet, signal, useSession = false }) {
   signal?.throwIfAborted();
   const origin = gatewayOrigin(api);
-  if (useSession && method === "GET") return browserRead({ account, path, api: origin, audience, wallet, signal });
+  if (useSession && (method === "GET" || (method === "POST" && path === "/memory/read"))) return browserRead({ account, path, api: origin, audience, wallet, signal, method, payload });
   const body = payload === undefined ? "" : JSON.stringify(payload);
   const digest = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body))));
   const timestamp = Math.floor(Date.now() / 1000);

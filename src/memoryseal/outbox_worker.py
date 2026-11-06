@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -119,7 +120,12 @@ def publish_one(
                 model.creator_address == creator,
             ),
         )
-        .values(state="publishing", creator_address=creator, attempt_id=attempt_id)
+        .values(
+            state="publishing",
+            creator_address=creator,
+            attempt_id=attempt_id,
+            publishing_started_at=int(time.time()),
+        )
     )
     if result.rowcount != 1:
         session.rollback()
