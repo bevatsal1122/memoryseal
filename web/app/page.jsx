@@ -5,6 +5,7 @@ import { useWorkspaceNavigation } from "../lib/workspace-navigation";
 import WorkspaceGuide from "../components/design/WorkspaceGuide";
 import Landing from "../components/design/Landing";
 import Brand from "../components/design/Brand";
+import NavIcon from "../components/design/NavIcon";
 import AgentWorkbench from "../components/AgentWorkbench";
 import TeamVaultPanel from "../components/TeamVaultPanel";
 import { normalize } from "viem/ens";
@@ -560,15 +561,15 @@ function DashboardSession({ signal }) {
   }
 
   const nav = [
-    ["overview", "Overview", "◈"],
-    ["memories", "Memories", "▤"],
-    ["agents", "Agents", "◇"],
-    ["permissions", "Permissions", "⊞"],
-    ["teams", "Organizations", "◇"],
-    ["vault", "Encrypted vault", "▣"],
-    ["activity", "Activity", "◷"],
-    ["workbench", "Agent console", "▷"],
-    ["settings", "Integrations", "⚙"],
+    ["overview", "Overview"],
+    ["memories", "Memories"],
+    ["agents", "Agents"],
+    ["permissions", "Permissions"],
+    ["teams", "Organizations"],
+    ["vault", "Encrypted vault"],
+    ["activity", "Activity"],
+    ["workbench", "Agent console"],
+    ["settings", "Integrations"],
   ];
   const activeAgents = data?.agents.filter((a) => !a.revoked).length || 0;
   const quarantineCount =
@@ -587,19 +588,19 @@ function DashboardSession({ signal }) {
           <aside className="sidebar">
             <Brand />
             <nav className="side-nav" aria-label="Workspace navigation">
-              {nav.map(([id, label, icon]) => (
+              {nav.map(([id, label]) => (
                 <button
                   key={id}
                   aria-label={label}
                   title={label}
-                  className={view === id ? "nav-item active" : "nav-item"}
+                  className={`nav-item${view === id ? " active" : ""}${id === "teams" || id === "workbench" ? " nav-section-start" : ""}${id === "settings" ? " nav-settings" : ""}`}
                   aria-current={view === id ? "page" : undefined}
                   onClick={() => setView(id)}
                 >
                   <span className="nav-icon" aria-hidden="true">
-                    {icon}
+                    <NavIcon name={id} />
                   </span>
-                  {label}
+                  <span className="nav-label">{label}</span>
                   {id === "memories" && quarantineCount > 0 && (
                     <span className="nav-count">{quarantineCount}</span>
                   )}
