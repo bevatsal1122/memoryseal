@@ -288,6 +288,19 @@ function MemoryEvidence({
       <p className="muted">
         Arkiv transaction:{" "}
         {memory.provenance?.transaction_hash || "Not available"}
+        {/^0x[0-9a-fA-F]{64}$/.test(memory.provenance?.transaction_hash || "") && (
+          <>
+            {" · "}
+            <a
+              href={`https://rabdi.explorer.arkiv.network/tx/${memory.provenance.transaction_hash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="View Arkiv transaction in explorer (opens in a new tab)"
+            >
+              View transaction ↗
+            </a>
+          </>
+        )}
       </p>
       <p className="muted">
         Arkiv creator: {memory.provenance?.creator_address || "Not recorded"}
