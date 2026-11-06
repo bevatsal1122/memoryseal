@@ -89,6 +89,32 @@ func TestBridgeBuilderInstallsResolverBeforeCompletion(t *testing.T) {
 
 type fixtureCandidates []core.Provider
 
+type failingCandidates struct{ err error }
+
+func (f failingCandidates) Len() int { return 1 }
+func (f failingCandidates) Provider(context.Context, int) (core.Provider, error) {
+	return core.Provider{}, f.err
+}
+
+func TestProviderEnforcementDiagnosticIsOnlyACategory(t *testing.T) {
+	for _, tc := range []struct {
+		message string
+		want    bool
+	}{
+		{"provider refused (provider enforce): private upstream detail", true},
+		{"unrelated failure with private upstream detail", false},
+	} {
+		resolverDiagnostic.providerEnforceRefused.Store(false)
+		c := pinnedCandidates{failingCandidates{errors.New(tc.message)}, "address", "signer", "https://example.test", nil}
+		if _, err := c.Provider(context.Background(), 0); err == nil {
+			t.Fatal("upstream failure must remain a failure")
+		}
+		if got := resolverDiagnostic.providerEnforceRefused.Load(); got != tc.want {
+			t.Fatalf("unexpected provider enforcement category: got %t, want %t", got, tc.want)
+		}
+	}
+}
+
 func (f fixtureCandidates) Len() int { return len(f) }
 func (f fixtureCandidates) Provider(_ context.Context, i int) (core.Provider, error) {
 	if i < 0 || i >= len(f) {

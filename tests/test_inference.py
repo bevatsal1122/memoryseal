@@ -6,6 +6,27 @@ import pytest
 from memoryseal.inference import InferenceError, ZeroGClassifier
 
 
+def test_router_default_uses_bounded_unverified_request_and_parses_fenced_json():
+    def handler(request):
+        assert "x-0g-provider-trust-mode" not in request.headers
+        payload = json.loads(request.content)
+        assert "verify_tee" not in payload
+        assert payload["max_tokens"] == 4096
+        analysis = {"category": "instruction", "risk": "high", "suspicious_instruction": True,
+                    "conflicts_with": [], "recommendation": "reject"}
+        return httpx.Response(200, json={"choices": [{"message": {
+            "content": "```json\n" + json.dumps(analysis) + "\n```"}}]})
+
+    classifier = ZeroGClassifier("key", "model", trust_mode="router_default",
+                                 transport=httpx.MockTransport(handler))
+    try:
+        result = classifier.analyze(content="synthetic", source_type="test", policy_context="")
+        assert result.analysis.risk == "high"
+        assert result.router_verified is None
+    finally:
+        classifier.close()
+
+
 def test_private_inference_requests_private_mode_and_validates_output():
     def handler(request):
         assert request.headers["x-0g-provider-trust-mode"] == "private"

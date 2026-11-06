@@ -5,6 +5,7 @@ does not verify attestation or receipts; callers must not claim that it does.
 """
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -41,7 +42,8 @@ class InferenceResult:
 
 class ZeroGClassifier:
     def __init__(
-        self, api_key: str, model: str, *, network: str = "testnet", provider=None, transport=None
+        self, api_key: str, model: str, *, network: str = "testnet", provider=None, transport=None,
+        trust_mode: Literal["private", "router_default"] = "private",
     ):
         if not api_key or not model:
             raise ValueError("0G API key and model are required")
@@ -53,15 +55,20 @@ class ZeroGClassifier:
             raise ValueError("unsupported 0G network")
         if provider is not None and not is_address(provider):
             raise ValueError("invalid 0G provider address")
+        if trust_mode not in ("private", "router_default"):
+            raise ValueError("unsupported 0G trust mode")
         self.model = model
         self.network = network
-        headers = {"Authorization": f"Bearer {api_key}", "X-0G-Provider-Trust-Mode": "private"}
+        self.trust_mode = trust_mode
+        headers = {"Authorization": f"Bearer {api_key}"}
+        if trust_mode == "private":
+            headers["X-0G-Provider-Trust-Mode"] = "private"
         if provider:
             headers["X-0G-Provider-Address"] = to_normalized_address(provider)
             headers["X-0G-Provider-Allow-Fallbacks"] = "false"
         self._client = httpx.Client(
             base_url=urls[network],
-            timeout=30,
+            timeout=60 if trust_mode == "router_default" else 30,
             transport=transport,
             follow_redirects=False,
             headers=headers,
@@ -100,12 +107,20 @@ class ZeroGClassifier:
                 },
             ],
         }
+        if self.trust_mode == "router_default":
+            payload.pop("verify_tee")
+            payload["max_tokens"] = 4096
         try:
             with self._client.stream("POST", "chat/completions", json=payload) as response:
                 body = read_json_limited(response, max_bytes=1_048_576)
                 response_key_header = response.headers.get("ZG-Res-Key")
             response_text = body["choices"][0]["message"]["content"]
-            analysis = ThreatAnalysis.model_validate_json(response_text)
+            parsed_text = response_text
+            if self.trust_mode == "router_default" and isinstance(parsed_text, str):
+                match = re.fullmatch(r"\s*```(?:json)?\s*\n(.*?)\n```\s*", parsed_text, re.DOTALL | re.IGNORECASE)
+                if match:
+                    parsed_text = match.group(1)
+            analysis = ThreatAnalysis.model_validate_json(parsed_text)
             trace = body.get("x_0g_trace") or {}
             if not isinstance(trace, dict):
                 raise TypeError("invalid router trace")
@@ -133,4 +148,4 @@ class ZeroGClassifier:
             TypeError,
             ValidationError,
         ) as exc:
-            raise InferenceError("private inference failed or returned invalid output") from exc
+            raise InferenceError("inference failed or returned invalid output") from exc

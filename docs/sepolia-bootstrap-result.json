@@ -1,0 +1,44 @@
+{
+  "agents": {
+    "browser": "f469daae-b0aa-450b-b28a-01a7f80a8547",
+    "finance": "902a42a0-12e4-4a65-9b45-806ee9d8fea3",
+    "research": "4b25e7bc-3952-44d0-aa04-abf3bf4d2f18"
+  },
+  "request_ids": {
+    "research": "320c220e-b90e-4408-9c99-6326f57f7281",
+    "claim": "781eb4d6-6643-48a8-9aa6-1b43e9aaca6d"
+  },
+  "ens_observations": {
+    "browser": {
+      "name": "browser.memoryseal-beryllium-affbced4.eth",
+      "resolvedAddress": "0x241927Dd6D2C629f672638906ae9e0Dc1C80a976",
+      "matches": true,
+      "chainId": 11155111,
+      "blockNumber": "12074147",
+      "blockHash": "0x397940a13f6af3ac9f6071fc8355465a704d0babec7c87d5a631a54c43ae2b4f"
+    },
+    "finance": {
+      "name": "finance.memoryseal-beryllium-affbced4.eth",
+      "resolvedAddress": "0xAb5E52fF7DF079a45dFe991cc83eb34DF6d46833",
+      "matches": true,
+      "chainId": 11155111,
+      "blockNumber": "12074147",
+      "blockHash": "0x397940a13f6af3ac9f6071fc8355465a704d0babec7c87d5a631a54c43ae2b4f"
+    },
+    "research": {
+      "name": "research.memoryseal-beryllium-affbced4.eth",
+      "resolvedAddress": "0xee7E3088dab6f94476314BA20cd58cE0E22924a7",
+      "matches": true,
+      "chainId": 11155111,
+      "blockNumber": "12074148",
+      "blockHash": "0xf477e913ed6a4d9a63e52270f97c5c18e5dc472cf21aa29e7ede65acc7c99b75"
+    }
+  },
+  "local_transfer": {
+    "asset": "0x6988ec52814125689586C8f2C62F93993CE82E3B",
+    "max_amount": "100000000000000000000",
+    "claim_amount": "5000000000000000000000"
+  },
+  "note": "Local memory grants only. Existing grants are left unchanged; ENS observations do not establish exclusive control or finality.",
+  "capability_count": 5
+}

@@ -189,6 +189,15 @@ func main() {
 	openaiproxy.Handler(client).ServeHTTP(rec, req)
 	receipt := core.MemorySealTakeReceipt()
 	if !validPinnedResponse(rec, in.Provider) || receipt == nil {
+		// Only bounded booleans and the status code are safe to report here. The
+		// upstream body, headers and receipt can contain credentials or content.
+		fmt.Fprintf(os.Stderr, "bridge response rejected: status=%d receipt=%t response_key=%t provider_match=%t overflow=%t\n",
+			rec.status, receipt != nil, rec.Header().Get("ZG-Res-Key") != "",
+			strings.EqualFold(rec.Header().Get("X-Provider"), in.Provider), rec.overflow)
+		fmt.Fprintf(os.Stderr, "bridge resolver stages: started=%t resolved=%t requested=%t returned=%t pins_matched=%t provider_enforce_refused=%t\n",
+			resolverDiagnostic.resolveStarted.Load(), resolverDiagnostic.resolveReturned.Load(),
+			resolverDiagnostic.providerRequested.Load(), resolverDiagnostic.providerReturned.Load(), resolverDiagnostic.pinsMatched.Load(),
+			resolverDiagnostic.providerEnforceRefused.Load())
 		fail()
 	}
 	output := struct {

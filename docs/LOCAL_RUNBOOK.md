@@ -55,11 +55,14 @@ Only source a file you trust. The gateway does not read `.demo.env`; its Arkiv a
 
 ## 2. Start the gateway and dashboard
 
-In the project root, start the gateway. Its settings load `.env` from the current directory:
+In the project root, start the gateway with a restrictive file creation mask. Its settings load `.env` from the current directory:
 
 ```bash
+umask 077
 .venv/bin/uvicorn memoryseal.api:app --host 127.0.0.1 --port 8000
 ```
+
+The mask applies to newly created files in that shell, including SQLite files created by the gateway; it does not change existing files. Restrict existing database files and any WAL, journal, shared-memory files and backups separately, and check their permissions after other processes create them. Directory access, backups and the encryption key must also be protected. This is local file access control, not a substitute for encryption or isolation.
 
 In another terminal, start the dashboard:
 
@@ -123,7 +126,7 @@ Use `MemoryNodes(client, agent_id, namespace, "external")` for externally source
 
 ## 4. Configure live testnet integrations separately
 
-The experimental gateway-connection check is required by default. Set an absolute executable path in `MEMORYSEAL_CONNECTION_ATTESTATION_VERIFIER`; the operator must build and review a compatible 0G pcverify binary and its trust roots. Set `MEMORYSEAL_CONNECTION_ATTESTATION_VERIFIER_SHA256` to its reviewed lowercase SHA-256 digest. Protect the executable and its parent directories from replacement; the digest check is not atomic and does not cover baselines or trust roots. The gateway checks the digest, runs it in strict mode, extracts its verified certificate fingerprint, then verifies the certificate on the actual inference TLS connection before sending the API key or content. Missing, incompatible or failing verifier output, or a different certificate, fails closed and quarantines the write. This path bypasses HTTP proxies, trusts the verifier and system CA roots, and has not been validated against a live successful 0G inference. It does not independently establish provider execution, request/response binding, or finality. Explicitly setting `MEMORYSEAL_REQUIRE_CONNECTION_ATTESTATION=false` disables the pre-send check; use that weaker mode only with non-sensitive test data. The experimental bridge currently requires it and remains unverified.
+The experimental gateway-connection check is required by default. Set an absolute executable path in `MEMORYSEAL_CONNECTION_ATTESTATION_VERIFIER`; the operator must build and review a compatible 0G pcverify binary and its trust roots. Set `MEMORYSEAL_CONNECTION_ATTESTATION_VERIFIER_SHA256` to its reviewed lowercase SHA-256 digest. Protect the executable and its parent directories from replacement; the digest check is not atomic and does not cover baselines or trust roots. The gateway checks the digest, runs it in strict mode, extracts its verified certificate fingerprint, then verifies the certificate on the actual inference TLS connection before sending the API key or content. Missing, incompatible or failing verifier output, or a different certificate, fails closed and quarantines the write. This path bypasses HTTP proxies, trusts the verifier and system CA roots, and has not been validated against a live successful 0G inference. It does not independently establish provider execution, request/response binding, or finality. Explicitly setting `MEMORYSEAL_REQUIRE_CONNECTION_ATTESTATION=false` disables the pre-send check; use that weaker mode only with non-sensitive test data. The experimental bridge currently requires the check to be disabled and remains unverified.
 
 No current inference path verifies the complete chain from the original request through an attested provider to its response. By default all new results remain quarantined and existing accepted memories are withheld from agent reads. The live memory stage now refuses to start either write unless the gateway reports request-binding support and the unbound-inference override is disabled; the current gateway reports no support, so the stage cannot run until implementation changes. This avoids paid writes that cannot satisfy its stated checks. `MEMORYSEAL_ALLOW_UNBOUND_INFERENCE=true` is a weaker compatibility mode for controlled tests only; it cannot satisfy P0 acceptance. Readiness is a gateway assertion and can change after the check, not independent proof. Owners can still inspect quarantined or withheld memories.
 

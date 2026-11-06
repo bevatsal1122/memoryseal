@@ -25,6 +25,11 @@ def test_spending_requires_current_scoped_capability():
     assert not check(2000)
     assert not check(1, "ETH")
     assert not check(-1)
+    for invalid in (float("nan"), float("inf"), 1.0, True, "1", 2**256):
+        assert not check(invalid)
+    assert not evaluate(
+        agent, [cap], operation="transfer", resource="USDC", policy_version=1
+    ).allowed
     assert not evaluate(
         agent,
         [cap],

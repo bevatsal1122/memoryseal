@@ -11,3 +11,49 @@
 {"step":"signed","label":"register","name":"memoryseal-beryllium-affbced4.eth","hash":"0x9e1f6fcbaea610fc054498ece74ed3e8f67fd621f1a1f1dd41bf5f671c9e6414","nonce":9,"gasLimit":"842094"}
 {"step":"receipt","label":"register","hash":"0x9e1f6fcbaea610fc054498ece74ed3e8f67fd621f1a1f1dd41bf5f671c9e6414","status":1,"block":12074023}
 {"step":"registered","name":"memoryseal-beryllium-affbced4.eth","owner":"0x4cb3703283CfE00bdE4012D85b9C74f5e753A727","subregistry":"0x0000000000000000000000000000000000000000","resolver":"0x0000000000000000000000000000000000000000"}
+{"step":"signed","label":"deploy-user-registry","hash":"0x17890912f0f24151c75d423957f6ad49c8e20517df0f1ee2c948bc60825d3ea5","nonce":10,"registry":"0x69D8195f2E5103dA0F1c6Ab9e118050b05660285","implementation":"0x9bd8a88719068d09ecee662f36c0e3856708366a","salt":"10197933705684557234265759571354381629362124212651747500945854198582276904941"}
+{"step":"receipt","label":"deploy-user-registry","hash":"0x17890912f0f24151c75d423957f6ad49c8e20517df0f1ee2c948bc60825d3ea5","status":1,"block":12074077,"registry":"0x69D8195f2E5103dA0F1c6Ab9e118050b05660285"}
+{"step":"registry_verified","registry":"0x69D8195f2E5103dA0F1c6Ab9e118050b05660285","implementation":"0x9BD8a88719068D09ecee662f36C0E3856708366a","ownerHasRegistrarRole":true}
+{"step":"attachment_failed","reason":"request timeout"}
+{"step": "signed", "label": "attach-user-registry", "hash": "0x7fa0bae87b999168c45e7281927047901d47cf72b909900e9fac19017860c8ee", "nonce": 11, "registry": "0x69D8195f2E5103dA0F1c6Ab9e118050b05660285"}
+{"step": "receipt", "label": "attach-user-registry", "hash": "0x7fa0bae87b999168c45e7281927047901d47cf72b909900e9fac19017860c8ee", "status": 1, "block": 12074118}
+{"step": "subregistry_attached", "registry": "0x0000000000000000000000000000000000000000", "matches": false}
+{"step":"signed","label":"register-browser","hash":"0x3e3cad0b8c80a1c0e9e59bb8b64eada17dffb61cd65b0cb2785a5d5dda0a8330","nonce":12,"expiry":"1825473096"}
+{"step":"receipt","label":"register-browser","hash":"0x3e3cad0b8c80a1c0e9e59bb8b64eada17dffb61cd65b0cb2785a5d5dda0a8330","status":1,"block":12074124}
+{"step":"subname_owned","name":"browser.memoryseal-beryllium-affbced4.eth","owner":"0x4cb3703283CfE00bdE4012D85b9C74f5e753A727","block":12074124}
+{"step":"signed","label":"register-research","hash":"0xc5c34e7ecea9c3af1859b5d73b49279258543603de87fd95872ea13084e08026","nonce":13,"expiry":"1825473096"}
+{"step":"receipt","label":"register-research","hash":"0xc5c34e7ecea9c3af1859b5d73b49279258543603de87fd95872ea13084e08026","status":1,"block":12074125}
+{"step":"subname_owned","name":"research.memoryseal-beryllium-affbced4.eth","owner":"0x4cb3703283CfE00bdE4012D85b9C74f5e753A727","block":12074125}
+{"step":"signed","label":"register-finance","hash":"0xfebcd6852d35cd9b5a094f4c3c4273ebeed9109fa5d7b9a063b0185c63eb625d","nonce":14,"expiry":"1825473096"}
+{"step":"receipt","label":"register-finance","hash":"0xfebcd6852d35cd9b5a094f4c3c4273ebeed9109fa5d7b9a063b0185c63eb625d","status":1,"block":12074127}
+{"step":"subname_owned","name":"finance.memoryseal-beryllium-affbced4.eth","owner":"0x4cb3703283CfE00bdE4012D85b9C74f5e753A727","block":12074127}
+{"step":"signed","label":"deploy-resolver-browser","hash":"0x71221c1def332fb9f2bdf32827d7dabefca8beb94ea4188f428593dced275134","nonce":15,"resolver":"0x09C99D331E8388E05518fa43750010691Da69300","salt":"25734069300777027748908530429600596244116830435526257738919063199500401014097"}
+{"step":"receipt","label":"deploy-resolver-browser","hash":"0x71221c1def332fb9f2bdf32827d7dabefca8beb94ea4188f428593dced275134","status":1,"block":12074130,"resolver":"0x09C99D331E8388E05518fa43750010691Da69300","salt":"25734069300777027748908530429600596244116830435526257738919063199500401014097"}
+{"step":"signed","label":"attach-resolver-browser","hash":"0x5fb56a4bd6047d89ee1956af3483698a2d357fd6663ce59005a59471233457e5","nonce":16,"resolver":"0x09C99D331E8388E05518fa43750010691Da69300"}
+{"step":"receipt","label":"attach-resolver-browser","hash":"0x5fb56a4bd6047d89ee1956af3483698a2d357fd6663ce59005a59471233457e5","status":1,"block":12074131,"resolver":"0x09C99D331E8388E05518fa43750010691Da69300"}
+{"step":"signed","label":"set-address-browser","hash":"0xdf7f98ac9ae7a1e07205d2f902651d4f1c8ec412567e5c8260cb6c3f4deb2562","nonce":17,"name":"browser.memoryseal-beryllium-affbced4.eth","address":"0x241927Dd6D2C629f672638906ae9e0Dc1C80a976","resolver":"0x09C99D331E8388E05518fa43750010691Da69300"}
+{"step":"receipt","label":"set-address-browser","hash":"0xdf7f98ac9ae7a1e07205d2f902651d4f1c8ec412567e5c8260cb6c3f4deb2562","status":1,"block":12074133,"name":"browser.memoryseal-beryllium-affbced4.eth","address":"0x241927Dd6D2C629f672638906ae9e0Dc1C80a976","resolver":"0x09C99D331E8388E05518fa43750010691Da69300"}
+{"step":"resolver_configured","name":"browser.memoryseal-beryllium-affbced4.eth","address":"0x241927Dd6D2C629f672638906ae9e0Dc1C80a976","resolver":"0x09C99D331E8388E05518fa43750010691Da69300"}
+{"step":"signed","label":"deploy-resolver-research","hash":"0x37ac93130fe8a3438be0466150476a5e1b4f927ffe3e19ce766f0893cc32f998","nonce":18,"resolver":"0xfE89B46E12080BC519FEd27d840cF166953E3BDf","salt":"14044874822566543570664685023705869322440485630998316155100630855890656925218"}
+{"step":"receipt","label":"deploy-resolver-research","hash":"0x37ac93130fe8a3438be0466150476a5e1b4f927ffe3e19ce766f0893cc32f998","status":1,"block":12074135,"resolver":"0xfE89B46E12080BC519FEd27d840cF166953E3BDf","salt":"14044874822566543570664685023705869322440485630998316155100630855890656925218"}
+{"step":"signed","label":"attach-resolver-research","hash":"0xfd9374499f11517164f745ed6241bf7a25eb6150131e78d1d06658650a65953d","nonce":19,"resolver":"0xfE89B46E12080BC519FEd27d840cF166953E3BDf"}
+{"step":"receipt","label":"attach-resolver-research","hash":"0xfd9374499f11517164f745ed6241bf7a25eb6150131e78d1d06658650a65953d","status":1,"block":12074136,"resolver":"0xfE89B46E12080BC519FEd27d840cF166953E3BDf"}
+{"step":"signed","label":"set-address-research","hash":"0x7004e0b598d9b4f0770ffaea391050d98c21fd3c82f95db7e8e9608f8430a290","nonce":20,"name":"research.memoryseal-beryllium-affbced4.eth","address":"0xee7E3088dab6f94476314BA20cd58cE0E22924a7","resolver":"0xfE89B46E12080BC519FEd27d840cF166953E3BDf"}
+{"step":"receipt","label":"set-address-research","hash":"0x7004e0b598d9b4f0770ffaea391050d98c21fd3c82f95db7e8e9608f8430a290","status":1,"block":12074138,"name":"research.memoryseal-beryllium-affbced4.eth","address":"0xee7E3088dab6f94476314BA20cd58cE0E22924a7","resolver":"0xfE89B46E12080BC519FEd27d840cF166953E3BDf"}
+{"step":"resolver_configured","name":"research.memoryseal-beryllium-affbced4.eth","address":"0xee7E3088dab6f94476314BA20cd58cE0E22924a7","resolver":"0xfE89B46E12080BC519FEd27d840cF166953E3BDf"}
+{"step":"signed","label":"deploy-resolver-finance","hash":"0x4d0caf79430c4c552a076a92d86d89a1b2942735f6b8321815c6c04b9b034fb5","nonce":21,"resolver":"0x25E92e2E799d94Ab898E6a0aeBdaA9a991F7A91c","salt":"62777358771645739312913907078655670980145909122023087364648321049758709824621"}
+{"step":"receipt","label":"deploy-resolver-finance","hash":"0x4d0caf79430c4c552a076a92d86d89a1b2942735f6b8321815c6c04b9b034fb5","status":1,"block":12074141,"resolver":"0x25E92e2E799d94Ab898E6a0aeBdaA9a991F7A91c","salt":"62777358771645739312913907078655670980145909122023087364648321049758709824621"}
+{"step":"signed","label":"attach-resolver-finance","hash":"0xd7d290736a7a23995815a8aaf0673e05f0b9333787b357837d640ee0c2ac5114","nonce":22,"resolver":"0x25E92e2E799d94Ab898E6a0aeBdaA9a991F7A91c"}
+{"step":"receipt","label":"attach-resolver-finance","hash":"0xd7d290736a7a23995815a8aaf0673e05f0b9333787b357837d640ee0c2ac5114","status":1,"block":12074142,"resolver":"0x25E92e2E799d94Ab898E6a0aeBdaA9a991F7A91c"}
+{"step":"signed","label":"set-address-finance","hash":"0x4238e484b661078a701b71f41001f7a239451943c00b5ff2d8ea3c15329cbf50","nonce":23,"name":"finance.memoryseal-beryllium-affbced4.eth","address":"0xAb5E52fF7DF079a45dFe991cc83eb34DF6d46833","resolver":"0x25E92e2E799d94Ab898E6a0aeBdaA9a991F7A91c"}
+{"step":"receipt","label":"set-address-finance","hash":"0x4238e484b661078a701b71f41001f7a239451943c00b5ff2d8ea3c15329cbf50","status":1,"block":12074143,"name":"finance.memoryseal-beryllium-affbced4.eth","address":"0xAb5E52fF7DF079a45dFe991cc83eb34DF6d46833","resolver":"0x25E92e2E799d94Ab898E6a0aeBdaA9a991F7A91c"}
+{"step":"resolver_configured","name":"finance.memoryseal-beryllium-affbced4.eth","address":"0xAb5E52fF7DF079a45dFe991cc83eb34DF6d46833","resolver":"0x25E92e2E799d94Ab898E6a0aeBdaA9a991F7A91c"}
+{"step":"signed","label":"grant-finance-config","hash":"0x0fe4927dbb80390c64cbe9154d6f93e5fa42bc6b2b3d819c0df6c8bf4697f9bb","nonce":24,"resolver":"0x25E92e2E799d94Ab898E6a0aeBdaA9a991F7A91c"}
+{"step":"receipt","label":"grant-finance-config","hash":"0x0fe4927dbb80390c64cbe9154d6f93e5fa42bc6b2b3d819c0df6c8bf4697f9bb","status":1,"block":12074154}
+{"step":"grant_scope_observed","keyRole":true,"rootRole":false}
+{"step":"negative_simulations","addressWriteRejected":true,"otherResolverRejected":true}
+{"step":"signed","label":"agent-config-write","hash":"0x159554fab1b36af0a291c5685515b75674a49cfc584d9771924aab1f369d2ddf","nonce":2,"resolver":"0x25E92e2E799d94Ab898E6a0aeBdaA9a991F7A91c"}
+{"step":"receipt","label":"agent-config-write","hash":"0x159554fab1b36af0a291c5685515b75674a49cfc584d9771924aab1f369d2ddf","status":1,"block":12074155}
+{"step":"signed","label":"revoke-finance-config","hash":"0x83838668f6fc224950a6a5c2efa0cd77d70a04df96b6c630dc6ced5f02239dc4","nonce":25,"resolver":"0x25E92e2E799d94Ab898E6a0aeBdaA9a991F7A91c"}
+{"step":"receipt","label":"revoke-finance-config","hash":"0x83838668f6fc224950a6a5c2efa0cd77d70a04df96b6c630dc6ced5f02239dc4","status":1,"block":12074156}
+{"step":"delegation_revoked","keyRole":false,"postRevokeWriteRejected":true,"name":"finance.memoryseal-beryllium-affbced4.eth","value":"memoryseal-demo-finance-v1"}

@@ -34,8 +34,10 @@ def evaluate(
         return Decision(False, "stale policy version", policy_version)
     if agent.revoked:
         return Decision(False, "agent revoked", policy_version)
-    if amount is not None and amount <= 0:
-        return Decision(False, "amount must be positive", policy_version)
+    if operation == "transfer" and amount is None:
+        return Decision(False, "transfer amount required", policy_version)
+    if amount is not None and (type(amount) is not int or not 0 < amount < 2**256):
+        return Decision(False, "amount must be a positive uint256", policy_version)
     instant = at or datetime.now(UTC)
     for capability in capabilities:
         if (

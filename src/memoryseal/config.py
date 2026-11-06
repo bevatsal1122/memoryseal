@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     zero_g_api_key: SecretStr | None = None
     zero_g_model: str | None = None
     zero_g_network: Literal["testnet", "mainnet"] = "testnet"
+    zero_g_trust_mode: Literal["private", "router_default"] = "private"
     zero_g_experimental_bridge: bool = False
     zero_g_bridge_executable: str | None = None
     zero_g_bridge_sha256: str | None = None

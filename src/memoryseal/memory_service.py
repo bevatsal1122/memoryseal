@@ -254,7 +254,8 @@ def write(
     )
     bridge_mode = settings.zero_g_experimental_bridge
     bridge_ready = not bridge_mode or (
-        not settings.require_connection_attestation
+        settings.zero_g_trust_mode == "private"
+        and not settings.require_connection_attestation
         and bridge_configured(
             settings.zero_g_bridge_executable, settings.zero_g_bridge_sha256, pins
         )
@@ -359,6 +360,7 @@ def write(
             settings.zero_g_model,
             network=settings.zero_g_network,
             provider=settings.zero_g_provider_address,
+            trust_mode=settings.zero_g_trust_mode,
             **extra,
         )
         try:
@@ -388,6 +390,7 @@ def write(
                 ),
                 "gateway_certificate_sha256": getattr(transport, "verified_fingerprint", None),
                 "network": result.network,
+                "trust_mode": settings.zero_g_trust_mode,
                 "inference_transport": "experimental_bridge" if bridge_mode else "router",
                 "bridge_reported_provider": getattr(transport, "reported_provider", None)
                 if bridge_mode
@@ -433,6 +436,8 @@ def write(
                 # The executable is an operator trust input; its output cannot
                 # independently establish provider attestation or receipt validity.
                 inference_status = "unverified"
+            elif settings.zero_g_trust_mode != "private":
+                inference_status = "unverified"
             elif result.router_verified is False:
                 inference_status = "verification_failed"
             elif (
@@ -442,7 +447,7 @@ def write(
                 and result.response_key
             ):
                 inference_status = "router_verified"
-            if any(pins) and not bridge_mode:
+            if any(pins) and not bridge_mode and settings.zero_g_trust_mode == "private":
                 signature_valid = bool(all(pins)) and verify_pinned_response(
                     provider=result.provider,
                     response_key=result.response_key,
