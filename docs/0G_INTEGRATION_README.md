@@ -2,9 +2,15 @@
 
 **Status: in progress.** This document records the implementation and the point-in-time observations made on 6 November 2026. MemorySeal can reach the 0G mainnet router and obtain a structured classification for synthetic data, but the complete private inference path has **not** passed independent end-to-end verification. The gateway keeps unverified inference quarantined. This is a development prototype, not a security audit.
 
-### Temporary low-cost routing (6 November 2026)
+### Current local routing (6 November 2026)
 
-At the owner's request, the local development configuration uses `glm-5.3-flash` and `MEMORYSEAL_ZERO_G_TRUST_MODE=router_default`. This sends ordinary HTTPS requests to the 0G router without requiring its Private routing mode or TEE verification. The router chooses the provider; this is **not private or independently attested inference**. Memory content and policy context submitted for classification can be visible to the router and its chosen provider, so use synthetic inputs only until private inference is restored. Local connection-attestation enforcement is disabled for this temporary path, while unverified inference remains quarantined and does not grant permissions.
+The local configuration now selects `0gm-1.0-35b-a3b` with `MEMORYSEAL_ZERO_G_TRUST_MODE=private`. A live synthetic Private-mode request and a direct classifier call succeeded; the router reported provider `0xf4fb8d2bd856e672b5f9848b0ed235a20079b250`. An isolated signed gateway write produced unverified inference, was quarantined, and could not be read by the agent. Gateway connection attestation remains disabled in this local test configuration, no provider is pinned, and the response did not provide independent request-bound attestation. Private routing and HTTP success do not establish end-to-end privacy or verified execution. Use synthetic content until the verification chain is established.
+
+Railway has separate environment variables and is not changed by editing the local `.env`. A signed read-only readiness check reported no configured model, Private routing, required connection attestation and no available verifier. Set the model, mainnet network and API key on Railway; a working verifier is also required while attestation enforcement remains enabled. Restart the affected gateway. The prior provider baseline result below was not rerun in this switch.
+
+### Earlier temporary low-cost routing (historical)
+
+Earlier, at the owner's request, the local development configuration used `glm-5.3-flash` and `MEMORYSEAL_ZERO_G_TRUST_MODE=router_default`. This sends ordinary HTTPS requests to the 0G router without requiring its Private routing mode or TEE verification. The router chooses the provider; this is **not private or independently attested inference**. Memory content and policy context submitted for classification can be visible to the router and its chosen provider, so use synthetic inputs only until private inference is restored. Local connection-attestation enforcement is disabled for this temporary path, while unverified inference remains quarantined and does not grant permissions.
 
 The live catalog listed $0.09015 per million input tokens and $0.3153 per million output tokens; prices and availability can change. A bounded synthetic request using the actual classifier returned a valid high-risk result. The router identified provider `0x000000003f486c7198d6203568a98d02b91f8044`; this was an observation, not a security pin. The router rejected `response_format=json_object`, and the model sometimes wraps JSON in a code fence; the temporary adapter accepts one fenced JSON object and still validates the strict schema. A 1,200-token limit produced empty answers in gateway tests with policy context; the temporary cap was increased to 4,096 tokens, including model reasoning. Success is not guaranteed for all inputs.
 
@@ -81,12 +87,12 @@ The goal above is the intended flow. In particular, the live request-binding and
 
 ## 4. Mainnet configuration and API request
 
-The local configuration has a 0G mainnet API key and temporarily uses `glm-5.3-flash` with router-default routing, as described above. Earlier tests below used `glm-5.3`, `0gm-1.0-35b-a3b` and `deepseek-v4.1-flash`. Settings belong in the private root `.env`, not in source control or chat:
+The local configuration has a 0G mainnet API key and uses `0gm-1.0-35b-a3b` with Private routing, as described above. Earlier tests below used `glm-5.3-flash`, `glm-5.3` and `deepseek-v4.1-flash`. Settings belong in the private root `.env`, not in source control or chat:
 
 ```text
 MEMORYSEAL_ZERO_G_NETWORK=mainnet
-MEMORYSEAL_ZERO_G_MODEL=glm-5.3-flash
-MEMORYSEAL_ZERO_G_TRUST_MODE=router_default
+MEMORYSEAL_ZERO_G_MODEL=0gm-1.0-35b-a3b
+MEMORYSEAL_ZERO_G_TRUST_MODE=private
 MEMORYSEAL_ZERO_G_API_KEY=<secret stored locally>
 ```
 

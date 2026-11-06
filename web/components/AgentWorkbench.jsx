@@ -198,8 +198,8 @@ export default function AgentWorkbench({ account, request, signal }) {
             <article className="operation-write">
               <h3>1. Write a memory</h3>
               <p className="muted">
-                Temporary non-private inference: use synthetic content only. A
-                successful write may still be quarantined.
+                Inference is not independently verified. Use synthetic content while
+                verification is incomplete; a write may be quarantined.
               </p>
               <form
                 onSubmit={(e) => {

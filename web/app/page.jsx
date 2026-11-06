@@ -668,8 +668,8 @@ function DashboardSession({ signal }) {
                     <p>
                       Model results are not independently verified. Sharing
                       requires quarantine clearance through explicit owner
-                      review. Use synthetic data for the temporary inference
-                      route.
+                      review. Use synthetic data while independent inference
+                      verification is incomplete.
                     </p>
                   </div>
                   <button onClick={() => setView("memories")}>
