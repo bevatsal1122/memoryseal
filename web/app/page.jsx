@@ -579,7 +579,6 @@ function DashboardSession({ signal }) {
         <>
           <aside className="sidebar">
             <Brand />
-            <div className="sidebar-label">WORKSPACE</div>
             <nav className="side-nav" aria-label="Workspace navigation">
               {nav.map(([id, label, icon]) => (
                 <button
@@ -600,10 +599,6 @@ function DashboardSession({ signal }) {
                 </button>
               ))}
             </nav>
-            <div className="sidebar-bottom">
-              <span className="status-dot" /> LOCAL DEVELOPMENT{" "}
-              <small>Connected workspace</small>
-            </div>
           </aside>
           <div
             className="workspace"
@@ -612,13 +607,8 @@ function DashboardSession({ signal }) {
             data-integration={integrationTab}
           >
             <div className="workspace-topbar">
-              <div className="breadcrumb">
-                WORKSPACE <span>/</span>{" "}
-                <b>{nav.find((item) => item[0] === view)?.[1]}</b>
-              </div>
               <div className="topbar-actions">
                 <span className="wallet-chip">
-                  <span className="status-dot" />
                   {account.slice(0, 6)}…{account.slice(-4)}
                 </span>
                 <button
@@ -637,9 +627,6 @@ function DashboardSession({ signal }) {
             )}
             <div className="workspace-heading">
               <div>
-                <span className="eyebrow">
-                  YOUR WORKSPACE <span>✳</span>
-                </span>
                 <h1 tabIndex={-1}>
                   {nav.find((item) => item[0] === view)?.[1]}
                   <span className="heading-dot">.</span>
@@ -669,9 +656,6 @@ function DashboardSession({ signal }) {
                   }
                 </p>
               </div>
-              <span className="workspace-badge">
-                <span className="status-dot" /> DEVELOPMENT PREVIEW
-              </span>
             </div>
             {["overview", "memories", "workbench"].includes(view) &&
               data.memories.some(
@@ -754,7 +738,6 @@ function DashboardSession({ signal }) {
               </nav>
             )}
             <section className="panel-setup">
-              <span className="eyebrow">SETUP / GATEWAY</span>
               <h2>Integration configuration</h2>
               <p className="muted">
                 Check the gateway’s current configuration before running the
@@ -933,7 +916,6 @@ function DashboardSession({ signal }) {
               <section className="panel-agents">
                 <div className="section-head">
                   <div>
-                    <span className="eyebrow">01 / IDENTITIES</span>
                     <h2>Agents</h2>
                   </div>
                 </div>
@@ -1047,7 +1029,6 @@ function DashboardSession({ signal }) {
                 </form>
               </section>
               <section className="panel-permissions">
-                <span className="eyebrow">02 / AUTHORITY</span>
                 <h2>Capabilities</h2>
                 <p className="muted">
                   Only an owner-signed grant changes authority.
@@ -1175,7 +1156,6 @@ function DashboardSession({ signal }) {
                 </form>
               </section>
               <section className="panel-memories">
-                <span className="eyebrow">03 / MEMORY</span>
                 <h2>Memory explorer</h2>
                 <p className="muted">
                   Source claims are evidence, never permission. Search matches
@@ -1583,7 +1563,6 @@ function DashboardSession({ signal }) {
                 )}
               </section>
               <section className="panel-ens">
-                <span className="eyebrow">04 / ENS IDENTITY</span>
                 <h2>Agent name record</h2>
                 <p className="muted">
                   Set an agent address on a parent name’s current ENSv2
@@ -2056,7 +2035,6 @@ function DashboardSession({ signal }) {
                 )}
               </section>
               <section className="panel-onchain">
-                <span className="eyebrow">05 / ONCHAIN POLICY</span>
                 <h2>Protected transfers</h2>
                 <p className="muted">
                   These owner-signed transactions set a per-transfer token limit
@@ -2797,7 +2775,6 @@ function DashboardSession({ signal }) {
                 </form>
               </section>
               <section className="panel-activity">
-                <span className="eyebrow">06 / ACTIVITY</span>
                 <h2>Decision trail</h2>
                 {data.events.length === 0 ? (
                   <p className="muted">No activity yet.</p>
@@ -2816,10 +2793,6 @@ function DashboardSession({ signal }) {
                 )}
               </section>
             </div>
-            <footer className="workspace-footer">
-              MemorySeal · Development preview{" "}
-              <span>Memory protocol for multi-agent systems.</span>
-            </footer>
           </div>
         </>
       )}

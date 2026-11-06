@@ -12,7 +12,7 @@ export function gatewayOrigin(api, page = globalThis.location) {
       : "The configured gateway uses HTTP. Set NEXT_PUBLIC_GATEWAY_URL to the gateway’s HTTPS URL and rebuild the frontend.");
   }
   if (page && page.protocol !== "https:" && !loopback(page.hostname)) {
-    throw new Error("The dashboard requires HTTPS outside local development.");
+    throw new Error("Hosted dashboards require HTTPS.");
   }
   return url.origin;
 }

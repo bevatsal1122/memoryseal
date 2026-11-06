@@ -109,7 +109,6 @@ export default function AgentWorkbench({ account, request, signal }) {
     <section className="agent-workbench" data-operation={operation}>
       <div className="section-head">
         <div>
-          <span className="eyebrow">SIGNED AGENT OPERATIONS</span>
           <h2>Run the full workflow</h2>
           <p className="muted">
             Connect the Browser, Research, or Finance wallet to act as that

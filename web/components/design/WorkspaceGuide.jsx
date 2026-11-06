@@ -30,10 +30,8 @@ export default function WorkspaceGuide({
     <div className="workspace-guide">
       <div className="guide-heading">
         <div>
-          <span className="eyebrow">YOUR NEXT MOVE</span>
-          <h2>{agents ? "Keep things moving." : "Build your workspace."}</h2>
+          <h2>{agents ? "Quick actions" : "Get started"}</h2>
         </div>
-        <span className="guide-caption">Signed actions. Explicit access.</span>
       </div>
       <div className="guide-steps">
         {steps.map((step, index) => (

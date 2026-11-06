@@ -74,11 +74,12 @@ a {
 .brand-mark {
   display: block;
   flex-shrink: 0;
+  object-fit: contain;
   background: transparent;
   border: 0;
   color: var(--ink);
   border-radius: 0;
-  width: 36px;
+  width: 44px;
   height: 36px;
 }
 .brand-dot,
@@ -1009,7 +1010,7 @@ a {
     font-size: 20px;
   }
   .launch-nav .brand-mark {
-    width: 30px;
+    width: 36px;
     height: 30px;
     font-size: 22px;
   }
@@ -1548,3 +1549,7 @@ a {
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
+
+/* Keep account controls aligned without a duplicate page breadcrumb. */
+.workspace-topbar { justify-content: flex-end; }
+.sidebar > .side-nav { margin-top: 30px; }

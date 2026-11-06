@@ -102,8 +102,6 @@ export default function Landing({ busy, error, onConnect }) {
           </div>
           <p className="connection-note">
             Connect an EVM wallet. Review requests before signing.
-            <br />
-            Development preview · Your configured gateway
           </p>
         </div>
         <div
@@ -174,7 +172,9 @@ export default function Landing({ busy, error, onConnect }) {
       <section className="launch-section" id="features">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">ONE MEMORY PROTOCOL. CLEAR BOUNDARIES.</span>
+            <span className="eyebrow">
+              ONE MEMORY PROTOCOL. CLEAR BOUNDARIES.
+            </span>
             <h2>
               Everything has
               <br />
