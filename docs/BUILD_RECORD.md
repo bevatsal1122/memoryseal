@@ -1084,3 +1084,9 @@ The frontend apex returned 308 to `https://www.memoryseal.work/`, which returned
 
 
 After allowing both frontend origins and redeploying, www CORS returned 200 and a single fresh wallet login authorized all four dashboard reads (`/agents`, `/capabilities`, `/memories`, `/events`) plus readiness, each HTTP 200. Logout returned 200 and reuse of that token returned 401. An initial pass was interrupted by a local DNS lookup failure; the subsequent pass completed successfully. Browser extension interaction and new onchain transfer transactions were not exercised in this validation.
+
+### Scoped Standard memory acceptance (2026-11-07)
+
+Added owner-signed, version-checked acceptance rules per agent and exact namespace. Strict remains the default; Standard can accept low-risk agent observations with unverified inference, without relabeling the inference or granting any capability. Risk/conflict/source/ancestry checks remain, and read-time checks honor current rules and writer revocation. Old quarantined records are unchanged. Added UI settings, Python/TypeScript helpers, audit entries, and SQLite schema 12 migration. See MEMORY_ACCEPTANCE.md.
+
+Validation: 263 Python tests passed, 6 skipped with isolated test configuration (private trust-mode default and absolute source import path); all 12 frontend Node tests passed against a temporary local gateway, which was stopped afterward. Production frontend/SDK build and changed Python-file lint passed. Existing viem/ox build and local Ganache native fallback warnings remain. No live deployment or real-wallet UI test was performed for this change.

@@ -5,8 +5,8 @@ from sqlalchemy.engine import Engine
 
 from memoryseal.db import Base
 
-# Version 11 adds short-lived browser login challenges and read sessions.
-SCHEMA_VERSION = 11
+# Version 12 adds scoped owner acceptance rules and records automatic acceptance.
+SCHEMA_VERSION = 12
 
 
 def migrate(engine: Engine) -> None:
@@ -41,6 +41,7 @@ def migrate(engine: Engine) -> None:
                 "request_digest": "VARCHAR",
                 "source_reference_encrypted": "BLOB",
                 "owner_review_commitment": "VARCHAR",
+                "auto_accepted": "BOOLEAN NOT NULL DEFAULT 0",
             }
             for name, definition in additions.items():
                 if name not in columns:

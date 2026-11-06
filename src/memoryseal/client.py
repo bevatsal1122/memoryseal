@@ -134,6 +134,20 @@ class MemorySealClient:
                 ).raise_for_status()
             return read_json_limited(response, max_bytes=24 * 1024 * 1024)
 
+    def set_acceptance_rule(
+        self, agent_id: str, namespace: str, mode: str, *, policy_version: int
+    ) -> dict:
+        """Owner-signed, exact-scope acceptance policy; does not grant capabilities."""
+        return self._post(
+            "/acceptance-rules",
+            {
+                "agent_id": agent_id,
+                "namespace": namespace,
+                "mode": mode,
+                "policy_version": policy_version,
+            },
+        )
+
     def _post(self, path: str, data: dict, *, timeout=15.0) -> dict:
         return self._request("POST", path, data, timeout=timeout)
 

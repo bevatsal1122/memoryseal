@@ -253,10 +253,13 @@ export class MemorySealClient {
     return this.request("POST", `/agents/${encodeURIComponent(id)}/revoke`, {});
   }
   listCapabilities() {
-    return this.request<{ capabilities: Capability[]; policy_version: number }>(
+    return this.request<{ capabilities: Capability[]; policy_version: number; acceptance_rules: { agent_id: string; namespace: string; mode: "strict" | "standard" }[] }>(
       "GET",
       "/capabilities",
     );
+  }
+  setAcceptanceRule(input: { agent_id: string; namespace: string; mode: "strict" | "standard"; policy_version: number }) {
+    return this.request("POST", "/acceptance-rules", input);
   }
   grant(input: CapabilityInput) {
     return this.request("POST", "/capabilities/grant", input);

@@ -72,6 +72,13 @@ class PolicyState(Base):
     version: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class AcceptanceRule(Base):
+    __tablename__ = "acceptance_rules"
+    agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"), primary_key=True)
+    namespace: Mapped[str] = mapped_column(String, primary_key=True)
+    mode: Mapped[str] = mapped_column(String, default="strict")
+
+
 class Memory(Base):
     __tablename__ = "memories"
     __table_args__ = (Index("uq_memory_agent_request_id", "agent_id", "request_id", unique=True),)
@@ -90,6 +97,7 @@ class Memory(Base):
     inference_status: Mapped[str] = mapped_column(String, default="not_configured")
     inference_reference: Mapped[str | None] = mapped_column(String, nullable=True)
     analysis_json: Mapped[str | None] = mapped_column(String, nullable=True)
+    auto_accepted: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     owner_review_commitment: Mapped[str | None] = mapped_column(String, nullable=True)
     ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
     encryption_nonce: Mapped[bytes] = mapped_column(LargeBinary)

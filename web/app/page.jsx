@@ -542,6 +542,7 @@ function DashboardSession({ signal }) {
     setData({
       agents: agents.agents,
       capabilities: capabilities.capabilities,
+      acceptanceRules: capabilities.acceptance_rules || [],
       version: capabilities.policy_version,
       memories: memories.memories,
       events: events.events,
@@ -1057,6 +1058,51 @@ function DashboardSession({ signal }) {
                 </form>
               </section>
               <section className="panel-permissions">
+                <h2>Memory acceptance</h2>
+                <p className="muted">
+                  Strict is the default. Standard automatically accepts low-risk agent observations
+                  in an exact namespace, even when inference is unverified. Conflicts, instructions,
+                  external sources and failed analysis stay quarantined. This grants no permissions.
+                </p>
+                {(data.acceptanceRules || []).map((rule) => (
+                  <p key={`${rule.agent_id}:${rule.namespace}`}>
+                    {data.agents.find((agent) => agent.id === rule.agent_id)?.ens_name || rule.agent_id}
+                    {" · "}{rule.namespace}{" · "}{rule.mode}
+                  </p>
+                ))}
+                <form onSubmit={(event) => {
+                  event.preventDefault();
+                  const form = event.currentTarget;
+                  const values = new FormData(form);
+                  run(async () => {
+                    await request(account, "POST", "/acceptance-rules", {
+                      agent_id: values.get("agent_id"),
+                      namespace: values.get("namespace"),
+                      mode: values.get("mode"),
+                      policy_version: data.version,
+                    });
+                    await refresh(account);
+                    form.reset();
+                  });
+                }}>
+                  <label htmlFor="acceptance-agent">Agent</label>
+                  <select id="acceptance-agent" name="agent_id" required defaultValue="">
+                    <option value="" disabled>Choose agent</option>
+                    {data.agents.filter((agent) => !agent.revoked).map((agent) => (
+                      <option key={agent.id} value={agent.id}>{agent.ens_name || agent.signing_address}</option>
+                    ))}
+                  </select>
+                  <label htmlFor="acceptance-namespace">Exact namespace</label>
+                  <input id="acceptance-namespace" name="namespace" required maxLength={200} placeholder="research" />
+                  <label htmlFor="acceptance-mode">Acceptance mode</label>
+                  <select id="acceptance-mode" name="mode" defaultValue="strict">
+                    <option value="strict">Strict — require existing verification rules</option>
+                    <option value="standard">Standard — allow low-risk unverified observations</option>
+                  </select>
+                  <p className="muted">Applies to new writes. Existing quarantined memories still need review.
+                    Returning to strict withholds unreviewed memories accepted through Standard.</p>
+                  <button disabled={busy}>Sign acceptance policy</button>
+                </form>
                 <h2>Capabilities</h2>
                 <p className="muted">
                   Only an owner-signed grant changes authority.
@@ -1290,6 +1336,7 @@ function DashboardSession({ signal }) {
                         </small>
                         <small>
                           Inference: {m.inference_status}
+                          {m.auto_accepted && " · Accepted under owner’s Standard policy"}
                           {m.owner_reviewed
                             ? " · Owner reviewed for sharing"
                             : ""}

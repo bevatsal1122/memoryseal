@@ -32,6 +32,7 @@ from memoryseal.encryption import (
 from memoryseal.firewall import is_authorization_claim
 from memoryseal.inference import InferenceError, ThreatAnalysis, ZeroGClassifier
 from memoryseal.models import (
+    AcceptanceRule,
     Agent,
     AuditEvent,
     Capability,
@@ -87,6 +88,18 @@ def analysis_requires_quarantine(analysis: dict) -> bool:
         or analysis["suspicious_instruction"]
         or bool(analysis["conflicts_with"])
         or analysis["recommendation"] in ("quarantine", "reject")
+    )
+
+
+def standard_eligible(analysis: dict | None, inference_status: str) -> bool:
+    return bool(
+        analysis
+        and inference_status in ("unverified", "router_verified", "pinned_signature_verified")
+        and analysis.get("category") == "observation"
+        and analysis.get("risk") == "low"
+        and analysis.get("recommendation") == "accept"
+        and analysis.get("suspicious_instruction") is False
+        and analysis.get("conflicts_with") == []
     )
 
 
@@ -534,17 +547,24 @@ def write(
         content.encode(),
         context=context(memory_id, agent.owner_address, namespace),
     )
+    rule = session.get(AcceptanceRule, (agent.id, namespace))
+    auto_accepted = bool(
+        rule
+        and rule.mode == "standard"
+        and source_type == "agent"
+        and standard_eligible(analysis.model_dump() if analysis else None, inference_status)
+    )
     authorization_claim = is_authorization_claim(content)
     reason = "untrusted agent memory"
     if inference_status == "not_configured":
         reason = "inference not configured"
     elif inference_status == "failed":
         reason = "inference failed"
-    elif inference_status in ("unverified", "verification_failed"):
+    elif inference_status in ("unverified", "verification_failed") and not auto_accepted:
         reason = "inference verification missing or failed"
     elif inference_status == "stale":
         reason = "policy context changed during inference"
-    elif not settings.allow_unbound_inference:
+    elif not settings.allow_unbound_inference and not auto_accepted:
         reason = "inference response is not verified against the request"
     elif analysis and analysis_requires_quarantine(analysis.model_dump()):
         reason = "classifier indicated risk"
@@ -557,6 +577,8 @@ def write(
     ):
         reason = "parent memory has quarantined or invalid ancestry"
     status = "accepted" if reason == "untrusted agent memory" else "quarantined"
+    if status == "accepted" and auto_accepted:
+        reason = "owner standard policy accepted low-risk observation; inference trust unchanged"
     item = Memory(
         id=memory_id,
         owner_address=agent.owner_address,
@@ -576,6 +598,7 @@ def write(
         else (analysis.category if analysis else "unclassified"),
         trust_class="untrusted",
         status=status,
+        auto_accepted=auto_accepted and status == "accepted",
         inference_status=inference_status,
         inference_reference=reference,
         analysis_json=json.dumps({**analysis.model_dump(), "evidence": evidence})
@@ -628,6 +651,8 @@ def readable_lineage(
                 Memory.source_type,
                 Memory.commitment,
                 Memory.owner_review_commitment,
+                Memory.agent_id,
+                Memory.auto_accepted,
             )
             .where(
                 Memory.id.in_(seeds),
@@ -648,6 +673,8 @@ def readable_lineage(
                 parent.source_type,
                 parent.commitment,
                 parent.owner_review_commitment,
+                parent.agent_id,
+                parent.auto_accepted,
             )
             .join(ancestors, parent.id == ancestors.c.parent_id)
             .where(parent.owner_address == owner, parent.namespace == namespace)
@@ -664,6 +691,8 @@ def readable_lineage(
                     row.source_type,
                     row.commitment,
                     row.owner_review_commitment,
+                    row.agent_id,
+                    row.auto_accepted,
                 )
                 for row in rows
             }
@@ -686,15 +715,29 @@ def readable_lineage(
                 source_type,
                 commitment,
                 reviewed,
+                writer_id,
+                auto_accepted,
             ) = nodes[current]
             analysis, analysis_state = stored_analysis(analysis_json)
             unsafe_analysis = analysis_state != "available" or analysis_requires_quarantine(
                 analysis
             )
+            rule = session.get(AcceptanceRule, (writer_id, namespace)) if auto_accepted else None
+            writer = session.get(Agent, writer_id) if auto_accepted else None
+            standard_allowed = bool(
+                auto_accepted
+                and rule
+                and rule.mode == "standard"
+                and writer
+                and not writer.revoked
+                and writer.owner_address == owner
+                and standard_eligible(analysis, inference_status)
+            )
             if (
                 status != "accepted"
                 or not (
                     reviewed == commitment
+                    or standard_allowed
                     or (
                         settings.allow_unbound_inference
                         and inference_status in ("router_verified", "pinned_signature_verified")

@@ -29,7 +29,15 @@ from memoryseal.config import settings
 from memoryseal.cors import dashboard_origins
 from memoryseal.db import engine, get_session
 from memoryseal.migrations import migrate
-from memoryseal.models import Agent, AuditEvent, Capability, Memory, PolicyState, ProvenanceOutbox
+from memoryseal.models import (
+    AcceptanceRule,
+    Agent,
+    AuditEvent,
+    Capability,
+    Memory,
+    PolicyState,
+    ProvenanceOutbox,
+)
 from memoryseal.networks import network, public_networks
 from memoryseal.onchain import OnchainReceiptVerifier, RpcError
 from memoryseal.onchain_deployment import observe_deployment
@@ -233,6 +241,12 @@ def list_capabilities(
     state = session.get(PolicyState, owner)
     return {
         "policy_version": state.version if state else 0,
+        "acceptance_rules": [
+            {"agent_id": rule.agent_id, "namespace": rule.namespace, "mode": rule.mode}
+            for rule in session.scalars(
+                select(AcceptanceRule).join(Agent).where(Agent.owner_address == owner)
+            )
+        ],
         "capabilities": [
             {
                 "id": cap.id,
@@ -424,6 +438,7 @@ def list_memories(
                 "trust_class": item.trust_class,
                 "status": item.status,
                 "owner_reviewed": item.owner_review_commitment == item.commitment,
+                "auto_accepted": item.auto_accepted,
                 "creation_reason": creation_reasons.get(item.id),
                 "lineage_eligible": item.id in lineage_by_namespace[item.namespace],
                 "commitment": item.commitment,
@@ -1064,6 +1079,54 @@ def revoke_agent(
     )
     session.commit()
     return {"id": agent_id, "policy_version": version, "revoked": True}
+
+
+class AcceptanceRuleUpdate(BaseModel):
+    agent_id: str
+    namespace: str = Field(min_length=1, max_length=200)
+    mode: Literal["strict", "standard"]
+    policy_version: int = Field(ge=0, strict=True)
+
+
+@app.post("/acceptance-rules")
+def set_acceptance_rule(
+    data: AcceptanceRuleUpdate,
+    owner: Annotated[str, Depends(authenticate)],
+    session: Annotated[Session, Depends(get_session)],
+):
+    session.execute(text("BEGIN IMMEDIATE"))
+    agent = owned_agent(session, data.agent_id, owner)
+    if agent.revoked:
+        raise HTTPException(409, "agent revoked")
+    state = session.get(PolicyState, owner)
+    if state is None or state.version != data.policy_version:
+        raise HTTPException(409, "stale policy version; refresh before signing")
+    if data.namespace != data.namespace.strip() or data.namespace == "*":
+        raise HTTPException(422, "an exact namespace is required")
+    version = advance_policy(session, owner)
+    session.execute(
+        sqlite_insert(AcceptanceRule)
+        .values(
+            agent_id=agent.id,
+            namespace=data.namespace,
+            mode=data.mode,
+        )
+        .on_conflict_do_update(index_elements=["agent_id", "namespace"], set_={"mode": data.mode})
+    )
+    session.add(
+        AuditEvent(
+            id=str(uuid4()),
+            owner_address=owner,
+            actor_address=owner,
+            event_type="acceptance_policy_changed",
+            resource=data.namespace,
+            decision="allowed",
+            reason=f"owner selected {data.mode} for agent {agent.id}",
+            policy_version=version,
+        )
+    )
+    session.commit()
+    return {"mode": data.mode, "policy_version": version}
 
 
 @app.post("/capabilities/grant", status_code=201)
