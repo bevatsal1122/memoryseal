@@ -132,7 +132,8 @@ export class MemorySealClient {
     public signer: Signer,
     baseUrl: string,
     public audience = "memoryseal-local",
-    private fetcher: typeof fetch = fetch,
+    // Browser fetch requires the global receiver, not this client instance.
+    private fetcher: typeof fetch = (...args) => globalThis.fetch(...args),
   ) {
     const u = new URL(baseUrl);
     if (
