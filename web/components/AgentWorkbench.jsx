@@ -1,4 +1,5 @@
 "use client";
+import ActionNotice from "./ActionNotice";
 
 import { useEffect, useState } from "react";
 import { parseUnits } from "viem";
@@ -159,17 +160,13 @@ export default function AgentWorkbench({ account, request, signal }) {
       <div className="section-head">
         <div>
           <h2>Agent playground</h2>
-          <p className="muted">Save and read memories as the connected agent.</p>
+
         </div>
         <button disabled={busy} onClick={() => run(load)}>
           Refresh access
         </button>
       </div>
-      {error && (
-        <div role="alert" className="alert">
-          {error}
-        </div>
-      )}
+      <ActionNotice message={error} onClose={() => setError("")} />
       {access && access.agents.length === 0 && (
         <div className="detail">
           This wallet has no agent registrations. Connect a registered agent
@@ -202,26 +199,27 @@ export default function AgentWorkbench({ account, request, signal }) {
       )}
       {selected && (
         <>
-          <details className="detail"><summary>Agent permissions</summary>
-            <b>{selected.revoked ? "Agent revoked" : "Registered agent"}</b>
-            <p>
-              Owner: {selected.owner_address} · local policy{" "}
-              {selected.policy_version}
-            </p>
-            <p>
-              Permissions are checked again on every request. Listed grants may
-              be expired or revoked.
-            </p>
-            <ul>
-              {selected.capabilities.map((c) => (
-                <li key={c.id}>
-                  {c.operation} · {c.resource}
-                  {c.max_amount ? ` · maximum ${c.max_amount} base units` : ""}
-                  {c.revoked ? " · revoked" : ""}
-                  {c.expires_at ? ` · expires ${c.expires_at}` : ""}
-                </li>
-              ))}
-            </ul>
+          <details className="agent-access-card">
+            <summary>Agent permissions <span>{selected.capabilities.filter(c => !selected.revoked && capabilityActive(c)).length} active</span></summary>
+            <div className="agent-access-heading">
+              <div><small>AGENT IDENTITY</small><h3>{selected.label || selected.ens_name || "Registered agent"}</h3></div>
+              <span className={`access-status ${selected.revoked ? "inactive" : ""}`}>{selected.revoked ? "Revoked" : "Registered"}</span>
+            </div>
+            <dl className="agent-access-meta"><div><dt>Owner wallet</dt><dd title={selected.owner_address}>{selected.owner_address.slice(0,8)}…{selected.owner_address.slice(-6)}</dd></div><div><dt>Policy version</dt><dd>{selected.policy_version}</dd></div></dl>
+            <div className="agent-grant-list">
+              {selected.capabilities.length === 0 && <p>No permissions granted yet.</p>}
+              {selected.capabilities.map(c => {
+                const state = selected.revoked ? "Agent revoked" : c.revoked ? "Revoked" : capabilityActive(c) ? "Active" : "Expired";
+                return <div className={`agent-grant ${state !== "Active" ? "inactive" : ""}`} key={c.id}>
+                  <span className="agent-grant-icon" aria-hidden="true">{c.operation === "read" ? "↗" : c.operation === "write" ? "+" : "⇄"}</span>
+                  <div className="agent-grant-description"><b>{c.operation.charAt(0).toUpperCase()+c.operation.slice(1)}</b><span>{c.resource}</span>
+                    {c.max_amount && <small>Maximum {c.max_amount} base units</small>}
+                    {c.expires_at && <small>Expires {new Date(/[zZ]|[+-]\d\d:\d\d$/.test(c.expires_at) ? c.expires_at : `${c.expires_at}Z`).toLocaleString()}</small>}
+                  </div><span className={`access-status ${state !== "Active" ? "inactive" : ""}`}>{state}</span>
+                </div>;
+              })}
+            </div>
+
           </details>
           <nav className="operation-tabs" aria-label="Agent operations">
             {[
@@ -293,9 +291,7 @@ export default function AgentWorkbench({ account, request, signal }) {
                 <div className="detail">
                   <small>Write request ID: {attempt.request_id}</small>
                   <p>
-                    Keep this ID if a response is lost. Retry uses the exact
-                    same content; it does not create a second memory. Do not
-                    reload during an uncertain write.
+                    Write not confirmed. Retry this request without reloading.
                   </p>
                 </div>
               )}
@@ -303,7 +299,7 @@ export default function AgentWorkbench({ account, request, signal }) {
                 <div className="detail">
                   <b role="status">{written.status === "accepted" ? "Memory saved" : "Saved — needs owner review"}</b>
                   <details><summary>Additional proof (optional)</summary>
-                  <p>Two additional wallet signatures check the saved content and acknowledge its fingerprint. This is not required to save a memory.</p>
+                  <p>Optional acknowledgement · two wallet signatures.</p>
                   <p>Memory ID: {written.id}</p>
                   <p>
                     Readable at write time:{" "}
@@ -359,9 +355,6 @@ export default function AgentWorkbench({ account, request, signal }) {
             </article>
             <article className="operation-read">
               <h3>Shared memories</h3>
-              <p className="muted">
-                Read shared memories in this collection. Items held for review stay private.
-              </p>
               <label htmlFor="wb-read-namespace">Collection</label>
               <input
                 id="wb-read-namespace"
@@ -384,7 +377,7 @@ export default function AgentWorkbench({ account, request, signal }) {
               {page && (
                 <div className="detail">
                   <b>{readScope.namespace}</b>
-                  <p>{page.memories.length} readable memories on this page</p>
+                  {page.memories.length === 0 && <p>No readable memories.</p>}
                   {page.memories.map((m) => (
                     <div key={m.id}>
                       <small>
@@ -409,8 +402,7 @@ export default function AgentWorkbench({ account, request, signal }) {
             <article className="operation-simulate">
               <h3>Permission check</h3>
               <p className="muted">
-                A simulation does not send tokens. Local permissions and onchain
-                permissions are separate.
+                Checks workspace permissions without sending tokens.
               </p>
               <form
                 onSubmit={(e) => {
@@ -468,12 +460,7 @@ export default function AgentWorkbench({ account, request, signal }) {
           <article className="detail operation-transfer">
             <h3>Protected transfer</h3>
             <p>
-              Connect the finance agent wallet on Sepolia. The owner must first
-              set the onchain grant and token allowance under Integrations.
-              Simulation checks the deployed contract; sending requires a
-              separate wallet transaction. Each click on Sign requests a new
-              transfer. If submission is uncertain, check wallet activity before
-              trying again.
+              Requires the owner’s onchain grant and token allowance. If submission is uncertain, check wallet activity before retrying.
             </p>
             <label>
               Configured chain
@@ -521,7 +508,7 @@ export default function AgentWorkbench({ account, request, signal }) {
                 </label>
               ))}
             </div>
-            <p>{tokenDecimals === null ? "Token decimals will be verified before sending." : `Token precision: ${tokenDecimals} decimals`} Simulation runs automatically before wallet confirmation.</p>
+
             <details><summary>Advanced checks</summary>
             <div className="inline">
               <button

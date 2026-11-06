@@ -1834,3 +1834,82 @@ textarea:focus {
   .workspace .memory-proof > summary .proof-state { margin-left: 6px; }
   .workspace .memory-record-heading h3 { font-size: 22px; }
 }
+
+/* Wallet action errors live in a focused dialog rather than shifting the form. */
+.action-notice { width: min(460px, calc(100vw - 40px)); box-sizing: border-box; padding: 28px; border: 2px solid #252920; background: #fffef8; color: #252920; box-shadow: 7px 7px 0 #252920; max-height: calc(100dvh - 48px); overflow: auto; }
+.action-notice::backdrop { background: #151a1280; backdrop-filter: blur(3px); }
+.action-notice-heading { display: flex; justify-content: space-between; align-items: flex-start; }
+.action-notice-icon { display: grid; place-items: center; width: 44px; height: 44px; background: #ffd1b8; border: 2px solid #252920; font-size: 26px; font-weight: 700; }
+.action-notice h2 { margin: 22px 0 10px; font-size: 25px; letter-spacing: -.6px; }
+.action-notice p { margin: 0 0 26px; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; color: #555b4e; }
+.action-notice button { cursor: pointer; font: inherit; color: #252920; }
+.action-notice-close { background: transparent; border: 0; font-size: 26px !important; padding: 0 6px; }
+.action-notice-dismiss { width: 100%; padding: 12px 20px; border: 2px solid #252920; background: #c9f46c; box-shadow: 3px 3px 0 #252920; font-weight: 700 !important; }
+.action-notice button:focus-visible { outline: 3px solid #756494; outline-offset: 4px; }
+.workspace .agent-access-card { padding: 20px 24px; margin: 20px 0; background: #fffef8; border: 1px solid #c6c9bb; }
+.agent-access-card summary { display: flex; align-items: center; gap: 12px; cursor: pointer; font-weight: 700; }
+.agent-access-card summary::before { content: '+'; font-size: 20px; }
+.agent-access-card[open] summary::before { content: '−'; }
+.agent-access-card summary > span { margin-left: auto; font-size: 12px; font-weight: 500; }
+.agent-access-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
+.workspace .agent-access-heading h3 { margin: 4px 0 0; font-size: 22px; }
+.workspace .agent-access-heading small { margin: 0; font-size: 10px; letter-spacing: 1.2px; }
+.agent-access-meta { display: flex; flex-wrap: wrap; gap: 24px; margin: 20px 0; }
+.agent-access-meta dt { color: #656d5b; font-size: 12px; }
+.agent-access-meta dd { margin: 5px 0 0; font-family: monospace; font-size: 14px; }
+.agent-grant { display: flex; gap: 14px; align-items: center; padding: 16px 0; border-top: 1px solid #dedfd4; }
+.agent-grant-icon { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; background: #ece7f5; border: 1px solid #b6afc5; font-size: 20px; }
+.agent-grant-description { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-wrap: anywhere; }
+.agent-grant-description > span { font-size: 14px; color: #656d5b; }
+.workspace .agent-grant-description small { margin: 4px 0 0; font-size: 12px; }
+.access-status { font-size: 11px; font-weight: 600; padding: 5px 9px; border: 1px solid #9aae79; background: #edf5da; white-space: nowrap; }
+.access-status.inactive { background: #f0eee7; border-color: #c9c7bb; color: #6d7065; }
+.agent-grant.inactive .agent-grant-icon { background: #f0eee7; border-color: #d2d0c6; color: #73796c; }
+.workspace .agent-access-footnote { font-size: 12px; margin: 12px 0 0; color: #656d5b; }
+@media (max-width: 480px) { .workspace .agent-access-card { padding: 16px; } .agent-access-heading { flex-wrap: wrap; } .agent-grant { gap: 9px; } }
+
+/* Agent setup: aligned fields and explicit permission choices. */
+.workspace form.agent-setup {
+  display: block;
+  max-width: none;
+  margin-top: 28px;
+  border: 2px solid var(--ink);
+  padding: 0;
+  background: #fffef9;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.agent-setup-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 22px 24px; background: var(--lavender); border-bottom: 2px solid var(--ink); }
+.setup-kicker { font: 700 10px/1.4 monospace; letter-spacing: .08em; }
+.workspace .agent-setup-header h3 { margin: 6px 0 0; font-size: 28px; letter-spacing: -.8px; }
+.workspace .agent-setup-header p { margin: 0; color: #50544b; font-size: 13px; line-height: 1.6; }
+.workspace .agent-setup > .alert { margin: 18px 24px; }
+.workspace .agent-setup .setup-section { border: 0; border-bottom: 1px solid #c7cabc; box-shadow: none; padding: 24px; margin: 0; background: transparent; }
+.setup-section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.setup-section-title > span { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--ink); background: var(--lime); font: 700 11px monospace; }
+.workspace .setup-section-title h4 { margin: 0; font-size: 16px; }
+.setup-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.setup-field { min-width: 0; }
+.workspace .agent-setup .setup-field > label { margin: 0 0 8px; font-size: 12px; }
+.workspace .agent-setup .setup-field input, .workspace .agent-setup .setup-field select { max-width: none; margin: 0; min-height: 44px; }
+.workspace .agent-setup small { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.workspace .agent-setup .setup-permissions { margin-top: 22px; }
+.setup-permissions legend { padding: 0; margin-bottom: 10px; font-size: 12px; font-weight: 700; }
+.workspace .agent-setup label.setup-permission { display: flex; align-items: flex-start; gap: 12px; padding: 15px; border: 1.5px solid #777c70; margin: 0; cursor: pointer; background: white; }
+.workspace .agent-setup label.setup-permission:has(input:checked) { border-color: var(--ink); background: #f0f7df; box-shadow: 2px 2px 0 var(--ink); }
+.workspace .agent-setup .setup-permission input { margin: 2px 0 0; flex: 0 0 18px; }
+.workspace .agent-setup .setup-permission b { font-size: 13px; }
+.workspace .agent-setup .setup-permission small { margin-top: 4px; font-weight: 400; }
+.workspace .agent-setup .setup-mode-notice { font-size: 12px; line-height: 1.6; padding: 12px 14px; margin: 18px 0 0; background: var(--peach); border-left: 3px solid var(--ink); }
+.workspace .agent-setup .setup-advanced { border: 0; margin: 0; padding: 18px 24px; background: transparent; }
+.setup-advanced summary > span { margin-left: 10px; font-size: 11px; font-weight: 400; color: var(--muted); }
+.setup-advanced[open] > .setup-fields { margin-top: 18px; }
+.agent-setup-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 18px 24px; border-top: 2px solid var(--ink); }
+.workspace .agent-setup-footer small { margin: 0; }
+.workspace .agent-setup-footer button { margin: 0; }
+@media (max-width: 700px) {
+  .agent-setup .setup-fields { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .workspace .agent-setup .setup-section, .agent-setup-header { padding: 18px; }
+  .workspace .agent-setup .setup-advanced, .agent-setup-footer { padding: 16px 18px; }
+  .agent-setup-footer > .inline { width: 100%; }
+  .agent-setup-footer button { flex: 1; }
+}

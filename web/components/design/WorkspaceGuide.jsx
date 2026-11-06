@@ -12,7 +12,7 @@ export default function WorkspaceGuide({
     },
     {
       view: "workbench",
-      title: "Create your first memory",
+      title: "Write a memory",
       detail: "Open the playground with your agent wallet.",
       icon: "▷",
     },
@@ -36,7 +36,7 @@ export default function WorkspaceGuide({
             </span>
             <span>
               <b>{step.title}</b>
-              <small>{step.detail}</small>
+
             </span>
             <span aria-hidden="true">↗</span>
           </button>

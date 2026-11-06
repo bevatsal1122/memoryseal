@@ -1,4 +1,5 @@
 "use client";
+import ActionNotice from "../components/ActionNotice";
 
 import { useEffect, useRef, useState } from "react";
 import { useWorkspaceNavigation } from "../lib/workspace-navigation";
@@ -8,6 +9,7 @@ import Brand from "../components/design/Brand";
 import NavIcon from "../components/design/NavIcon";
 import MemoryMap from "../components/MemoryMap";
 import AgentSetup from "../components/AgentSetup";
+import AgentCard from "../components/AgentCard";
 import MemoryEvidence from "../components/MemoryProof";
 import AgentWorkbench from "../components/AgentWorkbench";
 import TeamVaultPanel from "../components/TeamVaultPanel";
@@ -402,6 +404,9 @@ function DashboardSession({ signal }) {
           >
             <div className="workspace-topbar">
               <div className="topbar-actions">
+                <span className="wallet-chip">
+                  {account.slice(0, 6)}…{account.slice(-4)}
+                </span>
                 <button
                   className="refresh-button"
                   disabled={busy}
@@ -413,9 +418,6 @@ function DashboardSession({ signal }) {
                   await window.ethereum.request({method: "wallet_requestPermissions", params: [{eth_accounts: {}}]});
                   clearBrowserSessions(); await connect();
                 })}>Switch account</button>
-                <span className="wallet-chip">
-                  {account.slice(0, 6)}…{account.slice(-4)}
-                </span>
                 <button
                   className="refresh-button"
                   disabled={busy}
@@ -425,41 +427,14 @@ function DashboardSession({ signal }) {
                 </button>
               </div>
             </div>
-            {error && (
-              <div role="alert" className="alert">
-                {error}
-              </div>
-            )}
+            <ActionNotice message={error} onClose={() => setError("")} />
             <div className="workspace-heading">
               <div>
                 <h1 tabIndex={-1}>
                   {nav.find((item) => item[0] === view)?.[1]}
                   <span className="heading-dot">.</span>
                 </h1>
-                <p>
-                  {
-                    {
-                      teams:
-                        "Manage your team’s gateway access and permissions.",
-                      vault:
-                        "Keep encryption keys and private content on your device.",
-                      overview:
-                        "Your agents, memories, and permissions at a glance.",
-                      memories:
-                        "Explore what your agents have recorded and review the details.",
-                      agents:
-                        "Manage the identities that participate in your workspace.",
-                      permissions:
-                        "Define what each agent can read, write, and do.",
-                      activity:
-                        "Follow the decisions and actions in your workspace.",
-                      workbench:
-                        "Write, read, and execute with your registered agent wallet.",
-                      settings:
-                        "Check connections and manage advanced onchain controls.",
-                    }[view]
-                  }
-                </p>
+
               </div>
             </div>
 
@@ -515,7 +490,7 @@ function DashboardSession({ signal }) {
             )}
             <section className="panel-setup">
               <h2>Connections</h2>
-              <p>Services used by your workspace. Configured does not mean live-verified.</p>
+
               {integrationReadiness && <div className="connection-summary">
                 <p>Proof publication: {data.summary?.auto_publish ? "Automatic" : "Manual"}</p>
                 <p>ENS: {integrationReadiness.ens_sepolia_configured ? "Configured" : "See diagnostics"}</p>
@@ -699,39 +674,19 @@ function DashboardSession({ signal }) {
                   <p className="muted">No agents registered yet.</p>
                 ) : (
                   data.agents.map((a) => (
-                    <div className="row" key={a.id}>
-                      <div>
-                        <b>{a.label || a.ens_name || "Agent"}</b>
-                        <details onToggle={e => {
-                          if (e.target !== e.currentTarget || !e.currentTarget.open || !a.ens_name || ensObservations[a.id]) return;
-                          request(account, "GET", `/agents/${a.id}/observe-ens`).then(result => setEnsObservations(p => ({...p, [a.id]: result.observation}))).catch(error => setEnsObservations(p => ({...p, [a.id]: {error: error.message}})));
-                        }}><summary>Name and identity</summary>
-                          <small>{a.signing_address}</small>
-                          {a.ens_name && <><p>{a.ens_name}</p><small>{ensObservations[a.id]?.error || (ensObservations[a.id] ? ensObservations[a.id].matches ? "ENS address matched" : "ENS address mismatch" : "Checking ENS…")}</small><a href="https://explorer.ens.dev" target="_blank" rel="noopener noreferrer">Open ENS explorer ↗</a></>}
-                          <button onClick={() => {setEnsAgent(a.signing_address); setView("settings"); setIntegrationTab("names");}}>Manage ENS name</button>
-                        </details>
-                      </div>
-                      {a.revoked ? (
-                        <span className="pill">Revoked</span>
-                      ) : (
-                        <button
-                          disabled={busy}
-                          onClick={() =>
-                            run(async () => {
-                              await request(
-                                account,
-                                "POST",
-                                `/agents/${a.id}/revoke`,
-                                {},
-                              );
-                              await refresh(account);
-                            })
-                          }
-                        >
-                          Revoke
-                        </button>
-                      )}
-                    </div>
+                    <AgentCard key={a.id} agent={a} capabilities={data.capabilities}
+                      observation={ensObservations[a.id]} busy={busy}
+                      onCheckEns={() => {
+                        request(account, "GET", `/agents/${a.id}/observe-ens`)
+                          .then(result => setEnsObservations(p => ({...p, [a.id]: result.observation})))
+                          .catch(error => setEnsObservations(p => ({...p, [a.id]: {error: error.message}})));
+                      }}
+                      onManageEns={() => {setEnsAgent(a.signing_address); setView("settings"); setIntegrationTab("names");}}
+                      onRevoke={() => run(async () => {
+                        await request(account, "POST", `/agents/${a.id}/revoke`, {});
+                        await refresh(account);
+                      })}
+                    />
                   ))
                 )}
                 <AgentSetup account={account} version={data.version} request={request} onComplete={() => refresh(account)} />
@@ -739,9 +694,7 @@ function DashboardSession({ signal }) {
               <section className="panel-permissions">
                 <h2>Memory acceptance</h2>
                 <p className="muted">
-                  Strict is the default. Standard automatically accepts low-risk agent observations
-                  in an exact namespace, even when inference is unverified. Conflicts, instructions,
-                  external sources and failed analysis stay quarantined. This grants no permissions.
+                  Standard accepts eligible low-risk observations, including unverified results. Risky content stays withheld.
                 </p>
                 {(data.acceptanceRules || []).map((rule) => (
                   <p key={`${rule.agent_id}:${rule.namespace}`}>
@@ -778,14 +731,11 @@ function DashboardSession({ signal }) {
                     <option value="strict">Strict — require existing verification rules</option>
                     <option value="standard">Standard — allow low-risk unverified observations</option>
                   </select>
-                  <p className="muted">Applies to new writes. Existing quarantined memories still need review.
-                    Returning to strict withholds unreviewed memories accepted through Standard.</p>
+                  <p className="muted">Existing quarantined records still need review. Switching to Strict can withhold earlier auto-accepted records.</p>
                   <button disabled={busy}>Sign acceptance policy</button>
                 </form>
                 <h2>Permissions</h2>
-                <p className="muted">
-                  Only an owner-signed grant changes authority.
-                </p>
+
                 {data.capabilities.length === 0 && <p>No permissions yet. Add an agent to get started.</p>}
                 {data.agents.filter(a => data.capabilities.some(c => c.agent_id === a.id)).map(a => <details key={a.id} className="permission-group">
                   <summary>{a.label || a.ens_name || a.signing_address} · {data.capabilities.filter(c => c.agent_id === a.id && capabilityActive(c)).length} active permissions</summary>
@@ -876,7 +826,7 @@ function DashboardSession({ signal }) {
               </section>
               <section className="panel-memories">
                 <h2>Memories</h2>
-                <p className="muted">View memories and review exceptions. {data.summary?.auto_publish ? "Proofs publish automatically." : "Automatic proof publication is off; use proof recovery to publish."}</p>
+
                 <form
                   className="memory-filters"
                   onSubmit={(e) => {
@@ -931,10 +881,7 @@ function DashboardSession({ signal }) {
                     }
                     placeholder="UUID (optional)"
                   />
-                  <small>
-                    An empty result does not rule out an in-flight write. Retry
-                    an uncertain write with the same request ID.
-                  </small>
+
                   </div>
                   <div className="memory-filter-field">
                   <label htmlFor="search-status">Status</label>
@@ -953,17 +900,9 @@ function DashboardSession({ signal }) {
                     <option value="quarantined">Quarantined</option>
                   </select>
                   </div>
-                  <small className="muted">Filters update automatically.</small>
+
                 </form>
-                <p className="muted">
-                  {appliedFilter.memoryId
-                    ? `Viewing memory ${appliedFilter.memoryId}. `
-                    : appliedFilter.parentId
-                      ? `Viewing children of ${appliedFilter.parentId}. `
-                      : ""}
-                  Showing {memoryPage.memories.length} records starting at{" "}
-                  {memoryOffset + 1}.
-                </p>
+                {(appliedFilter.memoryId || appliedFilter.parentId) && <p className="muted">{appliedFilter.parentId ? "Related memories" : "Selected memory"}</p>}
                 <MemoryMap memories={memoryPage.memories} agents={data.agents} busy={busy}
                   onInspect={m => run(async () => {
                     setCommitmentCheck(null);
@@ -1185,11 +1124,11 @@ function DashboardSession({ signal }) {
                       {detail.trust_class}
                     </small>
                     <p role="status">{commitmentCheck === null ? "Checking saved content…" : commitmentCheck ? "Content integrity checked" : "Content integrity check failed — sharing blocked"}</p>
-                    {detail.status === "quarantined" && !detail.review_eligible && <p>This record cannot be released: its source, analysis, agent or related memories do not meet the review policy.</p>}
+                    {detail.status === "quarantined" && !detail.review_eligible && <p>This memory does not meet the release requirements.</p>}
                     {detail.status === "quarantined" && detail.review_eligible && (
                       <div className="detail">
                         <b>Owner review for sharing</b>
-                        <p>Allow authorized agents to read this observation. Your approval does not grant new permissions.</p>
+                        <p>Allow agents with read permission to access this memory.</p>
                         <button
                           disabled={busy || commitmentCheck !== true}
                           onClick={() =>
@@ -1234,11 +1173,7 @@ function DashboardSession({ signal }) {
                 <details><summary>Advanced ENS management</summary>
                 <h2>Agent name record</h2>
                 <p className="muted">
-                  Set an agent address on a parent name’s current ENSv2
-                  resolver. This creates an owner-managed resolver record, not
-                  an owned subname token. The flow only accepts currently
-                  unlinked records; a record could be linked by another
-                  transaction before yours is included.
+                  Sets an address record on the parent resolver; does not create an owned subname.
                 </p>
                 <form
                   onSubmit={(e) => {
@@ -1331,12 +1266,7 @@ function DashboardSession({ signal }) {
                     onChange={(e) => setEnsExpiry(e.target.value)}
                   />
                   <p className="muted">
-                    On Sepolia, register a never-used label to your connected
-                    wallet. The parent needs a canonical subregistry and your
-                    wallet needs its registrar role. The new token inherits its
-                    resolver; its initial roles permit renewal, resolver and
-                    subregistry changes, and transfer. Registry root role
-                    holders may also retain control.
+                    Requires an unused name and the parent’s registrar role. The subname inherits its resolver; parent administrators may retain control.
                   </p>
                   <button
                     type="button"
@@ -1404,15 +1334,7 @@ function DashboardSession({ signal }) {
                   <div className="detail">
                     <b>Dedicated resolver (Sepolia)</b>
                     <p className="muted">
-                      Deploy a separate resolver for this agent name, verify its
-                      deployment, then attach it to an owned subname. Attaching
-                      it changes the records visible through any inherited
-                      resolver. ENS permissions apply across every name using
-                      the resolver; avoid sharing it with other names. These
-                      transactions do not grant MemorySeal capabilities. Public
-                      transaction details are saved in this browser for the
-                      connected wallet when storage is available; the latest
-                      deployment replaces the previous saved workflow.
+                      Use a dedicated resolver for this name. Attaching it replaces inherited records. ENS changes do not grant memory permissions.
                     </p>
                     <button
                       type="button"
@@ -1561,12 +1483,7 @@ function DashboardSession({ signal }) {
                     {ensAttachmentCheck?.matches && (
                       <>
                         <p className="muted">
-                          Grant or revoke the selected agent’s ability to set
-                          the public memoryseal.config text key. This applies to
-                          all names served by this resolver. Do not share it
-                          with other names. This is not a memory or action
-                          permission; root roles can retain access after
-                          key-specific revocation.
+                          Controls the public memoryseal.config key for every name on this resolver. Root roles may retain access after revocation.
                         </p>
                         <div className="inline">
                           {[true, false].map((grant) => (
@@ -1661,9 +1578,7 @@ function DashboardSession({ signal }) {
                         the registrar root role
                       </p>
                       <small>
-                        An unowned child can still be reserved. This observation
-                        does not create a token, verify all registration
-                        conditions, or grant MemorySeal access.
+                        An unowned name may still be reserved.
                       </small>
                     </div>
                   )}
@@ -1708,8 +1623,7 @@ function DashboardSession({ signal }) {
                 <details><summary>Advanced onchain permissions and receipts</summary>
                 <h2>Protected transfers</h2>
                 <p className="muted">
-                  These owner-signed transactions set a per-transfer token limit
-                  in the contract. Gateway permissions are managed separately.
+                  Onchain limits are separate from workspace permissions.
                 </p>
                 <form
                   onSubmit={(e) => {
@@ -2026,13 +1940,7 @@ function DashboardSession({ signal }) {
                     required
                   />
                   <p className="muted">
-                    Uses the token and chain above. The approved contract can
-                    spend up to this allowance from your wallet. Nonzero
-                    approvals require a fresh gateway check of the executor and
-                    local contract build; use 0 to revoke. The check trusts the
-                    configured RPC and artifacts, and can change before
-                    inclusion. Some tokens require setting an existing allowance
-                    to 0 before changing it.
+                    The executor can spend up to this allowance from your wallet. Set 0 to revoke. Some tokens require revoking before changing an allowance.
                   </p>
                   <div className="inline">
                     <button disabled={busy}>Sign token allowance</button>

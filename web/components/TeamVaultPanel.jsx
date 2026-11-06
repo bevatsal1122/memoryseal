@@ -1,4 +1,5 @@
 "use client";
+import ActionNotice from "./ActionNotice";
 import { proofLabel } from "./MemoryProof";
 import { signedRequest } from "../lib/gateway.mjs";
 import { useEffect, useMemo, useState } from "react";
@@ -207,11 +208,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
             : "Private vault"}
         </h2>
       </div>
-      {error && (
-        <p role="alert" className="alert">
-          {error}
-        </p>
-      )}
+      <ActionNotice message={error} onClose={() => setError("")} />
       {notice && (
         <p role="status" className="detail">
           {notice}
@@ -219,7 +216,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
       )}
       {mode === "teams" ? (
         <>
-          <p>Invite teammates and manage their access.</p>
+
           <div className="inline">
             <input
               aria-label="Team name"
@@ -445,7 +442,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
         </>
       ) : (
         <>
-          <p>Only people with a key can read this content. Sharing requires review; the server cannot classify encrypted memories.</p>
+          <p>Encrypted memories require review before sharing.</p>
           <div className="vault-progress" aria-label="Encryption setup status">
             <span className={identity ? "complete" : ""}>
               {identity ? "✓" : "01"} Identity{" "}
@@ -463,10 +460,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
           <details open={!identity || !backedUp}>
             <summary>{identity ? "Vault unlocked · key and backup settings" : "Unlock or set up your vault"}</summary>
             <p>
-              Use a separate encryption identity for each wallet. Keep the
-              encrypted backup and passphrase: refreshing clears the in-memory
-              key. Losing both means losing access. Register recipients’
-              identities before sharing keys.
+              Keep your backup and passphrase. Refreshing locks the vault; without the backup and passphrase, you cannot restore access.
             </p>
             <input
               type="password"
@@ -537,11 +531,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
               Create a private collection or manage recipients
             </summary>
             <p>
-              Each line: wallet address, then its public-key fingerprint
-              verified with that person. Include the owner and every current
-              reader/writer who should receive the new key. A read grant alone
-              does not distribute a key. Removing a grant does not erase keys
-              already downloaded.
+              Include each recipient’s wallet and verified fingerprint. Permissions alone do not share keys; revocation cannot erase downloaded keys.
             </p>
             <label>
               Owner wallet
@@ -715,18 +705,13 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                     Refresh memories
                   </button>
                   <p>
-                    Agents receive only released records and need current
-                    namespace access plus the relevant key envelope. Managers
-                    can inspect quarantine.
+                    Readers need both permission and a key.
                   </p>
                   {scope.can_manage && (
                     <>
                       <details><summary>Security · rotate encryption key</summary>
                       <p>
-                        The owner updates recipients above and signs a fresh key
-                        version. New writes use it immediately; migrate old
-                        records in resumable batches. Keep old identity backups
-                        until migration completes.
+                        New writes use the new key immediately. Migrate older records before retiring backups.
                       </p>
                       <button
                         disabled={
@@ -840,10 +825,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                       </button>
                       <details><summary>Proof and recovery</summary>
                       <p>
-                        Public provenance contains commitments and lifecycle
-                        metadata, never content or encrypted key envelopes.
-                        These are gateway assertions, not independent
-                        attestations.
+                        Only lifecycle metadata is published—not private content or keys.
                       </p>
                       <button
                         disabled={busy}

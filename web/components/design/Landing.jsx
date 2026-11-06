@@ -69,10 +69,7 @@ export default function Landing({ busy, error, onConnect }) {
         <div className="alert launch-error" role="alert">
           <b>Couldn’t open your workspace.</b>
           <p>{error}</p>
-          <small>
-            Check your wallet connection and that the configured gateway is
-            running, then try again.
-          </small>
+
         </div>
       )}
       <div id="landing-content" className="launch-hero">

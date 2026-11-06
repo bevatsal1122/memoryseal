@@ -19,7 +19,7 @@ export default function MemoryProof({memory, observation, history, eventObservat
     <summary><span>Provenance & review</span><span className="proof-state">{proofLabel(proof?.state)}</span></summary>
     <div className="proof-body">
       <div className="proof-overview">
-        <div><span className="proof-label">PUBLIC RECORD</span><h3>{proofLabel(proof?.state)}</h3><p>Publication tracks metadata, not the truth of a memory.</p></div>
+        <div><span className="proof-label">PUBLIC RECORD</span><h3>{proofLabel(proof?.state)}</h3></div>
         <div className="inline"><Transaction hash={proof?.transaction_hash} />{proof?.state === "published" && <button disabled={busy} onClick={onObserve}>Verify published record</button>}</div>
       </div>
       {observation && <p className="proof-observation" role="status">Record check: {observation === "matched" ? "Matches the saved metadata" : readable(observation)}</p>}
@@ -40,7 +40,7 @@ export default function MemoryProof({memory, observation, history, eventObservat
         <summary>Record history & recovery <span className="proof-count">{history ? history.events.length : ""}</span></summary>
         <div className="proof-history-body">
           <div className="inline">{memory.parent_id && <button disabled={busy} onClick={onParent}>Related parent</button>}<button disabled={busy} onClick={onChildren}>Related memories</button><button disabled={busy} onClick={onHistory}>Refresh event details</button></div>
-          {!history && <p className="muted">{busy ? "Loading record history…" : "Load event details to inspect publication history."}</p>}
+          {!history && <p className="muted">{busy ? "Loading record history…" : "History not loaded."}</p>}
           {history?.events.length === 0 && <p className="muted">No events recorded.</p>}
           {history?.events.map(e => <div key={e.event_id} className="proof-timeline-event">
             <div className="proof-event-title"><strong>{readable(e.event_type)}</strong><span className="proof-state">{proofLabel(e.state)}</span></div>
@@ -58,7 +58,7 @@ export default function MemoryProof({memory, observation, history, eventObservat
         <p>Agent-signed origin acknowledgements are distinct from hardware attestation.</p>
         <pre>{JSON.stringify(raw, null, 2)}</pre>
       </details>
-      <p className="proof-footnote">Public proof contains metadata, not memory content. Publication does not establish that the content is true.</p>
+      <p className="proof-footnote">Public metadata only. Publication does not prove content is true.</p>
     </div>
   </details>;
 }
