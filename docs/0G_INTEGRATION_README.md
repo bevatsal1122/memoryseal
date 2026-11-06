@@ -4,7 +4,11 @@
 
 ### Current local routing (6 November 2026)
 
-The local configuration now selects `0gm-1.0-35b-a3b` with `MEMORYSEAL_ZERO_G_TRUST_MODE=private`. A live synthetic Private-mode request and a direct classifier call succeeded; the router reported provider `0xf4fb8d2bd856e672b5f9848b0ed235a20079b250`. An isolated signed gateway write produced unverified inference, was quarantined, and could not be read by the agent. Gateway connection attestation remains disabled in this local test configuration, no provider is pinned, and the response did not provide independent request-bound attestation. Private routing and HTTP success do not establish end-to-end privacy or verified execution. Use synthetic content until the verification chain is established.
+### Header-free 0GM follow-up
+
+At the user's request, follow the 0G team's recommendation to omit `X-0G-Provider-Trust-Mode` for `0gm-1.0-35b-a3b`. The local configuration uses `MEMORYSEAL_ZERO_G_TRUST_MODE=router_default`. A synthetic ping without that header returned HTTP 200, `pong`, and the router-reported header `x-0g-e2ee: sealed` in 3.11 seconds. This is evidence of API functionality and the router's report, not independent attestation. The Phala manifest investigation is deferred, not resolved; the provider baseline remains unresolved. No verification or quarantine settings were changed for this follow-up. Railway settings remain separate.
+
+Gateway connection attestation was already disabled locally and remains disabled; unbound inference remains disallowed and unverified results remain quarantined. This does not establish independently verified private inference.
 
 Railway has separate environment variables and is not changed by editing the local `.env`. A signed read-only readiness check reported no configured model, Private routing, required connection attestation and no available verifier. Set the model, mainnet network and API key on Railway; a working verifier is also required while attestation enforcement remains enabled. Restart the affected gateway. The prior provider baseline result below was not rerun in this switch.
 
@@ -14,7 +18,7 @@ Earlier, at the owner's request, the local development configuration used `glm-5
 
 The live catalog listed $0.09015 per million input tokens and $0.3153 per million output tokens; prices and availability can change. A bounded synthetic request using the actual classifier returned a valid high-risk result. The router identified provider `0x000000003f486c7198d6203568a98d02b91f8044`; this was an observation, not a security pin. The router rejected `response_format=json_object`, and the model sometimes wraps JSON in a code fence; the temporary adapter accepts one fenced JSON object and still validates the strict schema. A 1,200-token limit produced empty answers in gateway tests with policy context; the temporary cap was increased to 4,096 tokens, including model reasoning. Success is not guaranteed for all inputs.
 
-To return to Private inference, set `MEMORYSEAL_ZERO_G_TRUST_MODE=private`, select the desired compatible chat model, restore `MEMORYSEAL_REQUIRE_CONNECTION_ATTESTATION=true`, and configure and independently verify the current provider, signer, endpoint, baseline and request binding as needed. Vela requires a different decisions API adapter. Restart the service after changing settings. The full verified P0 demo remains blocked by the attestation and binding issues described below.
+For the earlier explicit-header path, set `MEMORYSEAL_ZERO_G_TRUST_MODE=private`, select the desired compatible chat model, restore `MEMORYSEAL_REQUIRE_CONNECTION_ATTESTATION=true`, and configure and independently verify the current provider, signer, endpoint, baseline and request binding as needed. Vela requires a different decisions API adapter. Restart the service after changing settings. The full verified P0 demo remains blocked by the attestation and binding issues described below.
 
 This is a guide to the 0G work, including the code, commands, tests, observed failures and questions for the 0G team. For the whole product see [P0 status](P0_STATUS.md), the [local runbook](LOCAL_RUNBOOK.md), and the detailed [build record](BUILD_RECORD.md). Paths and line numbers below refer to this repository snapshot; line numbers can move as files change.
 

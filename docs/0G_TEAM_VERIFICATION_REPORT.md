@@ -1,5 +1,9 @@
 # 0G verification: current reproducible results
 
+### Header-free 0GM follow-up
+
+At the user's request, follow the 0G team's recommendation to omit `X-0G-Provider-Trust-Mode` for `0gm-1.0-35b-a3b`. The local configuration uses `MEMORYSEAL_ZERO_G_TRUST_MODE=router_default`. A synthetic ping without that header returned HTTP 200, `pong`, and the router-reported header `x-0g-e2ee: sealed` in 3.11 seconds. This is evidence of API functionality and the router's report, not independent attestation. The Phala manifest investigation is deferred, not resolved; the provider baseline remains unresolved. No verification or quarantine settings were changed for this follow-up. Railway settings remain separate.
+
 Checked 6 November 2026 at approximately 14:23 UTC. Read-only diagnostics used upstream `0gfoundation/0g-pc-e2ee` commit `c0e7d23f03adea19cbac36223bbeabe05cc8eaad`, built locally in a temporary checkout. No API keys, wallet private keys, memory content or paid inference were used for these diagnostics. Values are point-in-time observations, not permanent pins.
 
 ## 1. Gateway app-compose is still unavailable
@@ -21,6 +25,15 @@ Current registry signer was `0xddaeaac4d8525d72dfd20cc6de0f28eb3d320bfb`. This d
 The fresh strict provider diagnostic passed acknowledgement, quote DCAP verification, allowlisted OS `dstack-nvidia-0.5.12`, onchain/quote signer match, and authenticated provider manifest. Provider compose hash: `6a0ea081469664b56b33fbd010ea707dfef67ae2ac8613420acf207e4bc9a0f4`. It then exited 1 because the verifier contained no per-service baseline for this provider. The review output flagged items needing justification, including shared mounts and guest-agent socket access. The gateway's own public provider identity endpoint independently reports its **own** verdicts as `quote_dcap: pass`, `onchain_signer: pass`, `measurement: pass`, `compose_baseline: no_baseline`, and `runtime_release: not_checked`; these are gateway reports, not independent proof of request binding.
 
 **Question:** Is there a reviewed per-service deployment baseline for this provider/compose hash, and an independently verifiable source for it? If not, is another provider/model currently supported with a reviewed baseline and full strict pass? Can you also confirm the intended independent signer-rotation process and what evidence should establish the new pin?
+
+## What happens if we bypass these checks
+
+- **Missing gateway manifest:** We lose the ability to inspect the exact application configuration and match it to the authenticated quote. Passing hardware and certificate checks alone does not establish that the gateway runs the intended application configuration. We would be relying more on the gateway operator's assurances.
+- **Missing provider baseline:** We can authenticate the provider's reported configuration, but cannot compare its services against a reviewed reference. An unexpected or unsafe service configuration could therefore go unrecognized by that missing check. This is a verification gap, not evidence that the provider is compromised.
+- **Practical effect:** Inference may still return valid-looking answers if enforcement is disabled, but we cannot describe that as independently verified private inference. Sensitive inputs may already have been sent before an answer is quarantined; quarantine protects downstream memory use, not confidentiality of an earlier transmission.
+- **MemorySeal behavior:** With strict enforcement enabled, failed verification blocks the protected inference path. If those checks are bypassed while MemorySeal's unverified-inference quarantine stays enabled, a successful response still does not become trusted, agent-readable memory. Disabling quarantine as well would allow unverified outputs to influence downstream agents; it does not automatically grant permissions or bypass separately enforced transfer rules.
+
+**Additional question for 0G:** If we temporarily proceed without these two checks, which privacy and integrity guarantees still hold, what additional operator trust is required, and what independently verifiable evidence supports those guarantees? We would limit such testing to synthetic, non-sensitive inputs. Resolving both blockers still requires checking that the evidence is bound to the actual inference connection/request; standalone verification is not sufficient.
 
 ## Reproduction
 

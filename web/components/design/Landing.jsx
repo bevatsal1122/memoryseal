@@ -150,11 +150,6 @@ export default function Landing({ busy, error, onConnect }) {
           <div className="map-note">
             MEMORY IS EVIDENCE. POLICY IS AUTHORITY.
           </div>
-          <span className="map-sticker" aria-hidden="true">
-            YOU SET
-            <br />
-            THE RULES
-          </span>
         </div>
       </div>
       <div className="principle-strip">

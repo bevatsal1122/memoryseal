@@ -36,6 +36,8 @@ def test_required_attestation_blocks_outbound_and_quarantines(
     monkeypatch.setattr(settings, "encryption_key", base64.b64encode(os.urandom(32)).decode())
     monkeypatch.setattr(settings, "zero_g_api_key", SecretStr("test"))
     monkeypatch.setattr(settings, "zero_g_model", "test")
+    # This fixture exercises the explicit private-mode verification path.
+    monkeypatch.setattr(settings, "zero_g_trust_mode", "private")
     monkeypatch.setattr(settings, "require_connection_attestation", True)
     monkeypatch.setattr(settings, "allow_unbound_inference", False)
     monkeypatch.setattr(settings, "zero_g_registry_rpc_url", "https://rpc.example")
