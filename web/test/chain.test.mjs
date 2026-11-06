@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import ganache from "../../contracts/node_modules/ganache/dist/node/core.js";
 import { BrowserProvider, ContractFactory } from "../../contracts/node_modules/ethers/lib.esm/index.js";
-import { approveTokenAllowance, tokenAllowance, onchainCapability, onchainReceipt, onchainVersion, revokeOnchainAgent, revokeOnchainLimit, revokeOnchainMemory, setOnchainLimit, setOnchainMemory } from "../lib/chain.mjs";
+import { executeProtectedTransfer, approveTokenAllowance, tokenAllowance, onchainCapability, onchainReceipt, onchainVersion, revokeOnchainAgent, revokeOnchainLimit, revokeOnchainMemory, setOnchainLimit, setOnchainMemory } from "../lib/chain.mjs";
 import { keccak256, toUtf8Bytes } from "../../contracts/node_modules/ethers/lib.esm/index.js";
 
 test("wallet grants and revokes the real registry on a local chain", async () => {
@@ -57,6 +57,20 @@ test("wallet grants and revokes the real registry on a local chain", async () =>
     assert.equal(await registry.canAccessMemory(args.owner, args.agent, keccak256(toUtf8Bytes("research")), true), false);
     await revokeOnchainMemory(wallet, memoryArgs);
     assert.equal(await registry.canAccessMemory(args.owner, args.agent, keccak256(toUtf8Bytes("research")), false), false);
+    const agentWallet = { request: args => args.method === "eth_accounts" ? Promise.resolve([agent.address]) : wallet.request(args) };
+    const execution = { ...args, token: await testToken.getAddress(), executor: await executorContract.getAddress(), recipient: await token.getAddress(), amount: "50", observeDeployment: async () => observed };
+    await setOnchainLimit(wallet, {...execution, amount:"100"});
+    await approveTokenAllowance(wallet, {...allowanceArgs,amount:"100"});
+    execution.policyVersion = await onchainVersion(wallet,args.registry,args.chainId,args.owner);
+    const before = await testToken.balanceOf(execution.recipient);
+    await assert.rejects(executeProtectedTransfer(agentWallet,{...execution,amount:"2000"}));
+    await assert.rejects(executeProtectedTransfer(agentWallet,{...execution,observeDeployment:async()=>({...observed,executor_code_matches_local:false})}),/must match/);
+    assert.equal((await executeProtectedTransfer(agentWallet,{...execution,simulateOnly:true})).executed,false);
+    assert.equal(await testToken.balanceOf(execution.recipient),before);
+    const sent = await executeProtectedTransfer(agentWallet,execution);
+    assert.equal(await onchainReceipt(wallet,execution.executor,execution.chainId,sent,execution.agent),"included");
+    assert.equal(await testToken.balanceOf(execution.recipient),before+50n);
+    await assert.rejects(executeProtectedTransfer(agentWallet,{...execution,policyVersion:"0"}));
     const revokedAgent = await revokeOnchainAgent(wallet, args);
     assert.equal(await onchainReceipt(wallet, args.registry, args.chainId, revokedAgent, args.owner), "included");
     assert.equal((await onchainCapability(wallet, args)).agentRevoked, true);

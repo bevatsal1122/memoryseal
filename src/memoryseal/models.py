@@ -89,6 +89,7 @@ class Memory(Base):
     inference_status: Mapped[str] = mapped_column(String, default="not_configured")
     inference_reference: Mapped[str | None] = mapped_column(String, nullable=True)
     analysis_json: Mapped[str | None] = mapped_column(String, nullable=True)
+    owner_review_commitment: Mapped[str | None] = mapped_column(String, nullable=True)
     ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
     encryption_nonce: Mapped[bytes] = mapped_column(LargeBinary)
     commitment: Mapped[str] = mapped_column(String)

@@ -131,3 +131,30 @@ export async function approveTokenAllowance(wallet, { token, executor, registry,
   if (result !== "0x" && result !== "0x" + "0".repeat(63) + "1") throw new Error("Token approval simulation did not return success.");
   return sendEstimated(wallet, transaction);
 }
+
+/** Execute only through the configured policy-enforcing contract, signed by the agent. */
+export async function executeProtectedTransfer(wallet, { registry, executor, chainId, owner, agent, token, recipient, amount, policyVersion, observeDeployment, simulateOnly = false }) {
+  await check(wallet, registry, chainId);
+  for (const address of [executor, owner, agent, token, recipient]) addressWord(address);
+  if (BigInt(amount) <= 0n) throw new Error("Transfer amount must be positive.");
+  const encodedAmount = uintWord(amount), encodedVersion = uintWord(policyVersion);
+  const accounts = await wallet.request({ method: "eth_accounts" });
+  if (!accounts?.some(a => a.toLowerCase() === agent.toLowerCase())) throw new Error("Connect the registered agent wallet before executing.");
+  if (typeof observeDeployment !== "function") throw new Error("A fresh deployment observation is required.");
+  const observed = await observeDeployment();
+  if (!observed || String(observed.chain_id) !== BigInt(chainId).toString() ||
+      observed.executor?.toLowerCase() !== executor.toLowerCase() || observed.registry?.toLowerCase() !== registry.toLowerCase() ||
+      observed.matches !== true || observed.registry_code_matches_local !== true || observed.executor_code_matches_local !== true) {
+    throw new Error("Executor and registry must match the configured deployment.");
+  }
+  await check(wallet, executor, chainId);
+  const selector = keccak256(stringToHex("execute(address,address,address,uint256,uint256)")).slice(0,10);
+  const transaction = { from: agent, to: executor, data: selector + addressWord(owner) + addressWord(token) + addressWord(recipient) + encodedAmount + encodedVersion };
+  // A revert blocks submission. A passing simulation is advisory; the contract checks again.
+  await wallet.request({ method: "eth_call", params: [transaction, "latest"] });
+  if (simulateOnly) return { simulated: true, executed: false };
+  await check(wallet, executor, chainId);
+  const currentAccounts = await wallet.request({ method: "eth_accounts" });
+  if (currentAccounts?.[0]?.toLowerCase() !== agent.toLowerCase()) throw new Error("Active wallet changed before submission.");
+  return sendEstimated(wallet, { ...transaction, chainId: "0x" + BigInt(chainId).toString(16) });
+}

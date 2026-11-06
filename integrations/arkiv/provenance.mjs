@@ -56,6 +56,14 @@ export const MemoryEventsV7 = defineSchema("memoryseal.memory-event.v7", {
   request_timestamp: str(), request_nonce: str(), request_body_sha256: str(), request_signature: str(),
 });
 
+export const MemoryEventsV8 = defineSchema("memoryseal.memory-event.v8", {
+  event_id: str().indexed(), memory_id: str().indexed(), owner: str().indexed(),
+  agent_id: str(), agent_address: str().indexed(), actor_address: str().indexed(),
+  event_type: str(), commitment: str(), parent_id: str(), trust_class: str(),
+  status: str(), policy_version: str(), source_type: str(), request_audience: str(),
+  request_timestamp: str(), request_nonce: str(), request_body_sha256: str(), request_signature: str(),
+});
+
 function schemaFor(name) {
   if (name === "memoryseal.memory-event.v1") return MemoryEvents;
   if (name === "memoryseal.memory-event.v2") return MemoryEventsV2;
@@ -64,6 +72,7 @@ function schemaFor(name) {
   if (name === "memoryseal.memory-event.v5") return MemoryEventsV5;
   if (name === "memoryseal.memory-event.v6") return MemoryEventsV6;
   if (name === "memoryseal.memory-event.v7") return MemoryEventsV7;
+  if (name === "memoryseal.memory-event.v8") return MemoryEventsV8;
   throw new Error("unsupported provenance schema");
 }
 
@@ -82,12 +91,13 @@ export function connectArkivReader({ accessKey = "" } = {}) {
 }
 
 export function publicValues(event) {
+  const review = event.schema === "memoryseal.memory-event.v8";
   const v6 = event.schema === "memoryseal.memory-event.v6";
   const origin = event.schema === "memoryseal.memory-event.v7";
-  const signed = origin || v6 || event.schema === "memoryseal.memory-event.v5";
+  const signed = review || origin || v6 || event.schema === "memoryseal.memory-event.v5";
   const quarantine = v6 || event.schema === "memoryseal.memory-event.v5" || event.schema === "memoryseal.memory-event.v4";
-  if (!['memoryseal.memory-event.v1', 'memoryseal.memory-event.v2', 'memoryseal.memory-event.v3', 'memoryseal.memory-event.v4', 'memoryseal.memory-event.v5', 'memoryseal.memory-event.v6', 'memoryseal.memory-event.v7'].includes(event.schema) ||
-      (origin ? event.event_type !== "memory_origin_attested" : quarantine ? event.event_type !== "memory_quarantined" : event.event_type !== "memory_created")) {
+  if (!['memoryseal.memory-event.v1', 'memoryseal.memory-event.v2', 'memoryseal.memory-event.v3', 'memoryseal.memory-event.v4', 'memoryseal.memory-event.v5', 'memoryseal.memory-event.v6', 'memoryseal.memory-event.v7', 'memoryseal.memory-event.v8'].includes(event.schema) ||
+      (review ? event.event_type !== "memory_reviewed" : origin ? event.event_type !== "memory_origin_attested" : quarantine ? event.event_type !== "memory_quarantined" : event.event_type !== "memory_created")) {
     throw new Error("unsupported provenance event");
   }
   if (!/^[0-9a-f]{64}$/.test(event.commitment) || !/^0x[0-9a-f]{40}$/.test(event.owner)) {
@@ -96,17 +106,18 @@ export function publicValues(event) {
   for (const value of [event.event_id, event.memory_id, event.agent_id]) {
     if (!/^[0-9a-f-]{36}$/.test(value)) throw new Error("invalid identifier");
   }
-  if ((v6 || origin) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(event.event_id)) throw new Error("invalid signed event identifier");
+  if ((v6 || origin || review) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(event.event_id)) throw new Error("invalid signed event identifier");
   if (event.parent_id !== null && !/^[0-9a-f-]{36}$/.test(event.parent_id)) throw new Error("invalid parent");
   if (!Number.isSafeInteger(event.policy_version) || event.policy_version < 0 ||
       !["accepted", "quarantined"].includes(event.status) || event.trust_class !== "untrusted") {
     throw new Error("invalid metadata");
   }
-  if (["memoryseal.memory-event.v3", "memoryseal.memory-event.v4", "memoryseal.memory-event.v5", "memoryseal.memory-event.v6", "memoryseal.memory-event.v7"].includes(event.schema) && !/^0x[0-9a-f]{40}$/.test(event.agent_address)) throw new Error("invalid agent address");
+  if (["memoryseal.memory-event.v3", "memoryseal.memory-event.v4", "memoryseal.memory-event.v5", "memoryseal.memory-event.v6", "memoryseal.memory-event.v7", "memoryseal.memory-event.v8"].includes(event.schema) && !/^0x[0-9a-f]{40}$/.test(event.agent_address)) throw new Error("invalid agent address");
   if (quarantine && (event.actor_address !== event.owner || event.status !== "quarantined")) throw new Error("invalid quarantine actor or status");
+  if (review && (event.actor_address !== event.owner || event.status !== "accepted" || event.source_type !== "agent")) throw new Error("invalid review actor or status");
   if (origin && event.actor_address !== event.agent_address) throw new Error("invalid origin actor");
   if (signed) {
-    const bodies = (v6 || origin) ? [JSON.stringify({event_id: event.event_id, commitment: event.commitment, policy_version: event.policy_version})] : ["", "{}"];
+    const bodies = (v6 || origin || review) ? [JSON.stringify({event_id: event.event_id, commitment: event.commitment, policy_version: event.policy_version})] : ["", "{}"];
     const validBody = bodies.map(body => createHash("sha256").update(body).digest("hex"));
     if (![event.request_audience, event.request_timestamp, event.request_nonce, event.request_body_sha256, event.request_signature].every(v => typeof v === "string") ||
         !/^[A-Za-z0-9._:-]{1,128}$/.test(event.request_audience) ||
@@ -121,8 +132,8 @@ export function publicValues(event) {
     parent_id: event.parent_id ?? "", trust_class: event.trust_class, status: event.status,
     policy_version: String(event.policy_version),
     ...(event.schema !== "memoryseal.memory-event.v1" ? { source_type: event.source_type } : {}),
-    ...(["memoryseal.memory-event.v3", "memoryseal.memory-event.v4", "memoryseal.memory-event.v5", "memoryseal.memory-event.v6", "memoryseal.memory-event.v7"].includes(event.schema) ? { agent_address: event.agent_address } : {}),
-    ...((quarantine || origin) ? { actor_address: event.actor_address } : {}),
+    ...(["memoryseal.memory-event.v3", "memoryseal.memory-event.v4", "memoryseal.memory-event.v5", "memoryseal.memory-event.v6", "memoryseal.memory-event.v7", "memoryseal.memory-event.v8"].includes(event.schema) ? { agent_address: event.agent_address } : {}),
+    ...((quarantine || origin || review) ? { actor_address: event.actor_address } : {}),
     ...(signed ? { request_audience: event.request_audience, request_timestamp: event.request_timestamp,
       request_nonce: event.request_nonce, request_body_sha256: event.request_body_sha256,
       request_signature: event.request_signature } : {}),
@@ -131,8 +142,8 @@ export function publicValues(event) {
 
 export async function verifyEventProof(event) {
   publicValues(event);
-  if (!["memoryseal.memory-event.v5", "memoryseal.memory-event.v6", "memoryseal.memory-event.v7"].includes(event.schema)) return;
-  const path = event.schema === "memoryseal.memory-event.v7" ? "attest-origin" : event.schema === "memoryseal.memory-event.v6" ? "quarantine-event" : "quarantine";
+  if (!["memoryseal.memory-event.v5", "memoryseal.memory-event.v6", "memoryseal.memory-event.v7", "memoryseal.memory-event.v8"].includes(event.schema)) return;
+  const path = event.schema === "memoryseal.memory-event.v8" ? "review-event" : event.schema === "memoryseal.memory-event.v7" ? "attest-origin" : event.schema === "memoryseal.memory-event.v6" ? "quarantine-event" : "quarantine";
   const message = `MemorySeal request v1\n${event.request_audience}\nPOST\n/memories/${event.memory_id}/${path}\n${event.request_body_sha256}\n${event.request_timestamp}\n${event.request_nonce}`;
   const signer = await recoverMessageAddress({ message, signature: event.request_signature });
   const expected = event.schema === "memoryseal.memory-event.v7" ? event.agent_address : event.owner;

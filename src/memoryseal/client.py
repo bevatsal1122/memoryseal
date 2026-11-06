@@ -143,6 +143,9 @@ class MemorySealClient:
     def list_agents(self) -> dict:
         return self._request("GET", "/agents")
 
+    def agent_access(self) -> dict:
+        return self._request("GET", "/agent-access")
+
     def list_capabilities(self) -> dict:
         return self._request("GET", "/capabilities")
 
@@ -177,6 +180,19 @@ class MemorySealClient:
 
     def inspect_memory(self, memory_id: str) -> dict:
         return self._request("GET", f"/memories/{UUID(memory_id)}")
+
+    def review_memory(
+        self, memory_id: str, *, event_id: str, commitment: str, policy_version: int
+    ) -> dict:
+        """Explicitly approve a low-risk observation for sharing, not for taking actions."""
+        return self._post(
+            f"/memories/{UUID(memory_id)}/review-event",
+            {
+                "event_id": str(UUID(event_id)),
+                "commitment": commitment,
+                "policy_version": policy_version,
+            },
+        )
 
     def quarantine_memory(self, memory_id: str) -> dict:
         return self._post(f"/memories/{UUID(memory_id)}/quarantine", {})
@@ -244,6 +260,22 @@ class MemorySealClient:
 
     def memory_provenance_events(self, memory_id: str) -> dict:
         return self._request("GET", f"/memories/{UUID(memory_id)}/provenance-events")
+
+    def publish_memory_event(self, memory_id: str, event_id: str) -> dict:
+        return self._request(
+            "POST",
+            f"/memories/{UUID(memory_id)}/provenance-events/{UUID(event_id)}/publish",
+            {},
+            timeout=90,
+        )
+
+    def reconcile_memory_event(self, memory_id: str, event_id: str) -> dict:
+        return self._request(
+            "POST",
+            f"/memories/{UUID(memory_id)}/provenance-events/{UUID(event_id)}/reconcile",
+            {},
+            timeout=90,
+        )
 
     def observe_memory_provenance_event(self, memory_id: str, event_id: str) -> dict:
         return self._request(

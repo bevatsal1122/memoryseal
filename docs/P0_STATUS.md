@@ -2,6 +2,14 @@
 
 Status: **in progress**. This is a development prototype; local test success is not a live deployment or security audit. The acceptance target is the complete security workflow in the technical specification, including real ENS, Arkiv and 0G integrations and an enforced action.
 
+## Website workflow update — 6 November 2026
+
+Implemented the agent console (signed writes, author acknowledgements, reads, local simulations and protected wallet transfers), owner-signed review of low-risk observations, targeted Arkiv publication/reconciliation controls, and matching SDK operations. Schema v9 records exact owner-reviewed commitments; provenance v8 binds signed review evidence. Reviewed memories retain unverified inference and untrusted content labels. Instructions, external content, authorization claims and unsafe ancestry cannot be released through this route.
+
+Validation for this update: Python **246 passed, 6 skipped**; Ruff passed; browser helper/HTTP tests **9 passed**; Arkiv adapter **6 passed**; isolated production build passed with the existing viem/ox bundling warning. The action helper was tested on a real local EVM, including recipient balance changes. UI smoke checks use a simulated wallet/gateway; real MetaMask and live testnet acceptance are still outstanding. Follow [the website test guide](WEBSITE_E2E_TEST.md).
+
+This is a P0 workflow extension, not completion of the full production specification. Client-held keys, online rotation, independent private 0G request binding and P2 integrations remain outstanding. The earlier evidence table below is historical; its references to missing browser controls are superseded by this update, while its live integration limits still apply.
+
 ## Requirements and evidence
 
 | P0 requirement | Current evidence | Remaining work |

@@ -32,7 +32,7 @@ from memoryseal.migrations import migrate
 from memoryseal.models import Agent, AuditEvent, Capability, Memory, PolicyState, ProvenanceOutbox
 from memoryseal.onchain import OnchainReceiptVerifier, RpcError
 from memoryseal.onchain_deployment import observe_deployment
-from memoryseal.outbox_worker import observe_published
+from memoryseal.outbox_worker import observe_published, publish_one, reconcile_one
 from memoryseal.policy import evaluate
 from memoryseal.request_limits import RequestBodyLimit
 from memoryseal.response_privacy import NoStoreResponses
@@ -118,6 +118,11 @@ def integration_readiness(_signer: Annotated[str, Depends(authenticate)]):
     return {
         "ens_sepolia_configured": bool(settings.ens_rpc_url and settings.ens_network == "sepolia"),
         "zero_g_router_configured": router_ready,
+        "zero_g_model": settings.zero_g_model,
+        "zero_g_trust_mode": settings.zero_g_trust_mode,
+        "onchain_chain_id": settings.onchain_chain_id,
+        "onchain_registry": settings.onchain_registry,
+        "onchain_executor": settings.onchain_executor,
         "zero_g_experimental_bridge": settings.zero_g_experimental_bridge,
         "unbound_inference_allowed": settings.allow_unbound_inference,
         "request_binding_verification_supported": False,
@@ -232,6 +237,43 @@ def list_capabilities(
             }
             for cap in capabilities
         ],
+    }
+
+
+@app.get("/agent-access")
+def agent_access(
+    signer: Annotated[str, Depends(authenticate)],
+    session: Annotated[Session, Depends(get_session)],
+):
+    """Discover only registrations controlled by the signing agent wallet."""
+    agents = session.scalars(select(Agent).where(Agent.signing_address == signer)).all()
+    return {
+        "agents": [
+            {
+                "id": agent.id,
+                "owner_address": agent.owner_address,
+                "signing_address": agent.signing_address,
+                "ens_name": agent.ens_name,
+                "revoked": agent.revoked,
+                "policy_version": (
+                    state.version if (state := session.get(PolicyState, agent.owner_address)) else 0
+                ),
+                "capabilities": [
+                    {
+                        "id": cap.id,
+                        "operation": cap.operation,
+                        "resource": cap.resource,
+                        "max_amount": str(cap.max_amount) if cap.max_amount is not None else None,
+                        "expires_at": cap.expires_at,
+                        "revoked": cap.revoked,
+                    }
+                    for cap in session.scalars(
+                        select(Capability).where(Capability.agent_id == agent.id)
+                    ).all()
+                ],
+            }
+            for agent in agents
+        ]
     }
 
 
@@ -371,6 +413,7 @@ def list_memories(
                 "analysis_state": analyses[item.id][1],
                 "trust_class": item.trust_class,
                 "status": item.status,
+                "owner_reviewed": item.owner_review_commitment == item.commitment,
                 "creation_reason": creation_reasons.get(item.id),
                 "lineage_eligible": item.id in lineage_by_namespace[item.namespace],
                 "commitment": item.commitment,
@@ -507,6 +550,26 @@ async def quarantine_with_signed_event(
     )
 
 
+@app.post("/memories/{memory_id}/review-event")
+async def review_memory(
+    memory_id: str,
+    request: Request,
+    owner: Annotated[str, Depends(authenticate)],
+    session: Annotated[Session, Depends(get_session)],
+):
+    body = await request.body()
+    event_id, commitment, version = parse_signed_memory_event(body)
+    return memory_service.review_for_owner(
+        session,
+        memory_id=memory_id,
+        owner=owner,
+        event_id=event_id,
+        commitment=commitment,
+        policy_version=version,
+        request_proof=public_event_request_proof(request, body),
+    )
+
+
 @app.post("/memories/{memory_id}/author-commitment-salt")
 def author_commitment_salt(
     memory_id: str,
@@ -591,6 +654,46 @@ def inspect_memory(
     session: Annotated[Session, Depends(get_session)],
 ):
     return memory_service.inspect_for_owner(session, memory_id=memory_id, owner=owner)
+
+
+@app.post("/memories/{memory_id}/provenance-events/{event_id}/publish")
+def publish_memory_event(
+    memory_id: str,
+    event_id: str,
+    owner: Annotated[str, Depends(authenticate)],
+    session: Annotated[Session, Depends(get_session)],
+):
+    item = session.get(Memory, memory_id)
+    event = session.get(ProvenanceOutbox, event_id)
+    if item is None or item.owner_address != owner or event is None or event.memory_id != memory_id:
+        raise HTTPException(status_code=404, detail="provenance event not found")
+    if event.state != "pending":
+        raise HTTPException(
+            status_code=409,
+            detail="only pending events can be published; reconcile uncertain events",
+        )
+    session.commit()
+    return {
+        "event_id": event_id,
+        "state": publish_one(session, memory_id=memory_id, event_id=event_id),
+    }
+
+
+@app.post("/memories/{memory_id}/provenance-events/{event_id}/reconcile")
+def reconcile_memory_event(
+    memory_id: str,
+    event_id: str,
+    owner: Annotated[str, Depends(authenticate)],
+    session: Annotated[Session, Depends(get_session)],
+):
+    item = session.get(Memory, memory_id)
+    event = session.get(ProvenanceOutbox, event_id)
+    if item is None or item.owner_address != owner or event is None or event.memory_id != memory_id:
+        raise HTTPException(status_code=404, detail="provenance event not found")
+    if event.state != "uncertain":
+        raise HTTPException(status_code=409, detail="only uncertain events can be reconciled")
+    session.commit()
+    return {"event_id": event_id, "state": reconcile_one(session, event_id)}
 
 
 def validate_integer_amount(value):

@@ -78,3 +78,23 @@ def memory_origin_attested(
     entry.event_type = "memory_origin_attested"
     entry.payload = json.dumps(payload, separators=(",", ":"))
     return entry
+
+
+def memory_reviewed(
+    memory: Memory, *, agent_address: str, policy_version: int, request_proof: dict, event_id: str
+) -> ProvenanceOutbox:
+    entry = memory_created(memory, agent_address=agent_address)
+    entry.id = event_id
+    payload = json.loads(entry.payload)
+    payload.update(
+        schema="memoryseal.memory-event.v8",
+        event_id=event_id,
+        event_type="memory_reviewed",
+        actor_address=memory.owner_address,
+        status="accepted",
+        policy_version=policy_version,
+        **request_proof,
+    )
+    entry.event_type = "memory_reviewed"
+    entry.payload = json.dumps(payload, separators=(",", ":"))
+    return entry

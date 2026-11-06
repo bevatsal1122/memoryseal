@@ -68,7 +68,13 @@ def observer_env(creator: str | None = None) -> dict[str, str] | None:
     return env
 
 
-def publish_one(session: Session, *, memory_id: str | None = None, runner=run_arkiv) -> str | None:
+def publish_one(
+    session: Session,
+    *,
+    memory_id: str | None = None,
+    event_id: str | None = None,
+    runner=run_arkiv,
+) -> str | None:
     """Claim one event; an interrupted publish is uncertain and never auto-retried.
 
     The operator must reconcile uncertain/publishing events against Arkiv before
@@ -82,6 +88,8 @@ def publish_one(session: Session, *, memory_id: str | None = None, runner=run_ar
     except (ValueError, TypeError):
         return "not_configured"
     query = select(ProvenanceOutbox.id).where(ProvenanceOutbox.state == "pending")
+    if event_id is not None:
+        query = query.where(ProvenanceOutbox.id == event_id)
     if memory_id is not None:
         query = query.where(ProvenanceOutbox.memory_id == memory_id)
     else:

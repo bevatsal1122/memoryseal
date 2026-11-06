@@ -37,7 +37,11 @@ def verify_quarantine_request(
         ):
             return False
         selected = schema or event.get("schema")
-        versioned = selected in ("memoryseal.memory-event.v6", "memoryseal.memory-event.v7")
+        versioned = selected in (
+            "memoryseal.memory-event.v6",
+            "memoryseal.memory-event.v7",
+            "memoryseal.memory-event.v8",
+        )
         if versioned:
             event_id, commitment, policy = (
                 event["event_id"],
@@ -72,7 +76,9 @@ def verify_quarantine_request(
             method="POST",
             target=f"/memories/{event['memory_id']}/"
             + (
-                "attest-origin"
+                "review-event"
+                if selected == "memoryseal.memory-event.v8"
+                else "attest-origin"
                 if selected == "memoryseal.memory-event.v7"
                 else "quarantine-event"
                 if versioned
@@ -120,15 +126,16 @@ def compare_event(
             "memoryseal.memory-event.v6",
         },
         "memory_origin_attested": {"memoryseal.memory-event.v7"},
+        "memory_reviewed": {"memoryseal.memory-event.v8"},
     }
     if event_type not in schemas or report.get("schema") not in schemas[event_type]:
         raise ValueError("Unsupported provenance schema")
-    if event_type == "memory_quarantined" and (
+    if event_type in ("memory_quarantined", "memory_reviewed") and (
         not isinstance(expected_owner, str)
         or not is_address(expected_owner)
         or int(expected_owner, 16) == 0
     ):
-        raise ValueError("Expected owner is required for a quarantine event")
+        raise ValueError("Expected owner is required for an owner lifecycle event")
     if event_type == "memory_origin_attested" and (
         not isinstance(expected_owner, str)
         or not is_address(expected_owner)
@@ -155,12 +162,12 @@ def compare_event(
     event = matches[0]
     if event.get("memory_id") != canonical_id or event.get("event_type") != event_type:
         raise ValueError("Selected event does not match the expected memory")
-    if event_type == "memory_quarantined" and (
+    if event_type in ("memory_quarantined", "memory_reviewed") and (
         not isinstance(event.get("owner"), str)
         or not isinstance(event.get("actor_address"), str)
         or event["owner"].lower() != expected_owner.lower()
         or event["actor_address"].lower() != expected_owner.lower()
-        or event.get("status") != "quarantined"
+        or event.get("status") != ("accepted" if event_type == "memory_reviewed" else "quarantined")
     ):
         raise ValueError("Quarantine owner, actor or status does not match")
     if event_type == "memory_origin_attested" and (
@@ -174,12 +181,16 @@ def compare_event(
     ):
         raise ValueError("Origin owner, agent or actor does not match")
     request_signature_valid = None
-    if report["schema"] in ("memoryseal.memory-event.v5", "memoryseal.memory-event.v6"):
+    if report["schema"] in (
+        "memoryseal.memory-event.v5",
+        "memoryseal.memory-event.v6",
+        "memoryseal.memory-event.v8",
+    ):
         request_signature_valid = verify_quarantine_request(
             event, expected_owner, schema=report["schema"]
         )
         if not request_signature_valid:
-            raise ValueError("Quarantine request signature does not match")
+            raise ValueError("Owner request signature does not match")
     agent_signature_valid = None
     if report["schema"] == "memoryseal.memory-event.v7":
         agent_signature_valid = verify_quarantine_request(
@@ -201,7 +212,12 @@ def compare_event(
             "Compares private material to a supplied query page; the page, RPC, publication and truth are not authenticated. "
             + (
                 "The request signature binds the event ID, commitment and policy version, not publication time or other event metadata."
-                if report["schema"] in ("memoryseal.memory-event.v6", "memoryseal.memory-event.v7")
+                if report["schema"]
+                in (
+                    "memoryseal.memory-event.v6",
+                    "memoryseal.memory-event.v7",
+                    "memoryseal.memory-event.v8",
+                )
                 else "The request signature does not bind the event ID, commitment, policy version, or publication time."
             )
         ),
@@ -220,7 +236,12 @@ def main():
     parser.add_argument("--entity-key", required=True)
     parser.add_argument(
         "--event-type",
-        choices=("memory_created", "memory_quarantined", "memory_origin_attested"),
+        choices=(
+            "memory_created",
+            "memory_quarantined",
+            "memory_origin_attested",
+            "memory_reviewed",
+        ),
         default="memory_created",
     )
     parser.add_argument("--expected-owner", help="required for quarantine and origin events")

@@ -584,8 +584,6 @@ def readable_lineage(
     """Check only requested memories and their recorded ancestors."""
     # Neither supported router status proves request/response binding. Old
     # accepted records must not bypass the current security policy.
-    if not settings.allow_unbound_inference:
-        return set()
     nodes = {}
     # Chunk seeds to stay below SQLite's bound-variable limits. UNION, not UNION
     # ALL, terminates even if corrupt legacy data contains a cycle.
@@ -600,6 +598,8 @@ def readable_lineage(
                 Memory.category,
                 Memory.analysis_json,
                 Memory.source_type,
+                Memory.commitment,
+                Memory.owner_review_commitment,
             )
             .where(
                 Memory.id.in_(seeds),
@@ -618,6 +618,8 @@ def readable_lineage(
                 parent.category,
                 parent.analysis_json,
                 parent.source_type,
+                parent.commitment,
+                parent.owner_review_commitment,
             )
             .join(ancestors, parent.id == ancestors.c.parent_id)
             .where(parent.owner_address == owner, parent.namespace == namespace)
@@ -632,6 +634,8 @@ def readable_lineage(
                     row.category,
                     row.analysis_json,
                     row.source_type,
+                    row.commitment,
+                    row.owner_review_commitment,
                 )
                 for row in rows
             }
@@ -645,14 +649,29 @@ def readable_lineage(
             if current in visiting or current not in nodes:
                 valid = False
                 break
-            parent, status, inference_status, category, analysis_json, source_type = nodes[current]
+            (
+                parent,
+                status,
+                inference_status,
+                category,
+                analysis_json,
+                source_type,
+                commitment,
+                reviewed,
+            ) = nodes[current]
             analysis, analysis_state = stored_analysis(analysis_json)
             unsafe_analysis = analysis_state != "available" or analysis_requires_quarantine(
                 analysis
             )
             if (
                 status != "accepted"
-                or inference_status not in ("router_verified", "pinned_signature_verified")
+                or not (
+                    reviewed == commitment
+                    or (
+                        settings.allow_unbound_inference
+                        and inference_status in ("router_verified", "pinned_signature_verified")
+                    )
+                )
                 or category in ("instruction", "authorization_claim")
                 or source_type != "agent"
                 or unsafe_analysis
@@ -845,6 +864,7 @@ def quarantine_for_owner(
     if event_id is not None and session.get(ProvenanceOutbox, event_id) is not None:
         raise HTTPException(status_code=409, detail="provenance event identifier already used")
     item.status = "quarantined"
+    item.owner_review_commitment = None
     entry = memory_quarantined(
         item,
         agent_address=agent.signing_address,
@@ -912,3 +932,91 @@ def inspect_for_owner(session: Session, *, memory_id: str, owner: str) -> dict:
         "trust_class": item.trust_class,
         "commitment": item.commitment,
     }
+
+
+def review_for_owner(
+    session: Session,
+    *,
+    memory_id: str,
+    owner: str,
+    event_id: str,
+    commitment: str,
+    policy_version: int,
+    request_proof: dict,
+) -> dict:
+    """Explicit owner review permits sharing a low-risk observation, never an action."""
+    from memoryseal.provenance import memory_reviewed
+
+    session.execute(text("BEGIN IMMEDIATE"))
+    session.expire_all()
+    item = session.get(Memory, memory_id)
+    if item is None or item.owner_address != owner:
+        raise HTTPException(status_code=404, detail="memory not found")
+    state = session.get(PolicyState, owner)
+    if state is None or state.version != policy_version or item.commitment != commitment:
+        raise HTTPException(status_code=409, detail="memory commitment or owner policy changed")
+    existing = session.get(ProvenanceOutbox, event_id)
+    if existing:
+        if (
+            existing.memory_id == item.id
+            and existing.event_type == "memory_reviewed"
+            and item.status == "accepted"
+            and item.owner_review_commitment == commitment
+        ):
+            session.commit()
+            return {"id": item.id, "status": "accepted", "changed": False, "event_id": event_id}
+        raise HTTPException(status_code=409, detail="review event identifier already used")
+    agent = session.get(Agent, item.agent_id)
+    analysis, analysis_state = stored_analysis(item.analysis_json)
+    if (
+        agent is None
+        or agent.revoked
+        or agent.owner_address != owner
+        or item.source_type != "agent"
+        or item.category in ("instruction", "authorization_claim")
+        or analysis_state != "available"
+        or analysis["category"] != "observation"
+        or analysis["risk"] != "low"
+        or analysis_requires_quarantine(analysis)
+    ):
+        raise HTTPException(
+            status_code=409, detail="only low-risk agent observations can be owner-reviewed"
+        )
+    plaintext = open_memory(
+        key_for(owner, item.namespace),
+        SealedMemory(item.ciphertext, item.encryption_nonce, item.salt, item.commitment),
+        context=context(item.id, owner, item.namespace),
+    ).decode()
+    if is_authorization_claim(plaintext):
+        raise HTTPException(
+            status_code=409, detail="authorization claims cannot be released by memory review"
+        )
+    if item.parent_id and item.parent_id not in readable_lineage(
+        session, owner, item.namespace, [item.parent_id]
+    ):
+        raise HTTPException(status_code=409, detail="parent memory is not eligible for sharing")
+    item.status = "accepted"
+    item.owner_review_commitment = commitment
+    session.add(
+        memory_reviewed(
+            item,
+            agent_address=agent.signing_address,
+            policy_version=policy_version,
+            request_proof=request_proof,
+            event_id=event_id,
+        )
+    )
+    session.add(
+        AuditEvent(
+            id=str(uuid4()),
+            owner_address=owner,
+            actor_address=owner,
+            event_type="memory_reviewed",
+            resource=item.id,
+            decision="accepted",
+            reason="owner approved this observation for sharing; inference remains unverified",
+            policy_version=policy_version,
+        )
+    )
+    session.commit()
+    return {"id": item.id, "status": "accepted", "changed": True, "event_id": event_id}

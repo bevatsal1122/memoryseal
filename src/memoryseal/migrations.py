@@ -5,8 +5,8 @@ from sqlalchemy.engine import Engine
 
 from memoryseal.db import Base
 
-# Version 8 adds encrypted source references; old plaintext references remain readable.
-SCHEMA_VERSION = 8
+# Version 9 records exact commitments explicitly reviewed by the owner.
+SCHEMA_VERSION = 9
 
 
 def migrate(engine: Engine) -> None:
@@ -37,6 +37,7 @@ def migrate(engine: Engine) -> None:
                 "request_id": "VARCHAR",
                 "request_digest": "VARCHAR",
                 "source_reference_encrypted": "BLOB",
+                "owner_review_commitment": "VARCHAR",
             }
             for name, definition in additions.items():
                 if name not in columns:
