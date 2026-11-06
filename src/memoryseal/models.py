@@ -202,3 +202,14 @@ class VaultOutbox(Base):
     entity_key: Mapped[str | None] = mapped_column(String, nullable=True)
     transaction_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class BrowserCredential(Base):
+    __tablename__ = "browser_credentials"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    address: Mapped[str] = mapped_column(String)
+    origin: Mapped[str] = mapped_column(String)
+    audience: Mapped[str] = mapped_column(String)
+    expires_at: Mapped[int] = mapped_column(Integer, index=True)
+    kind: Mapped[str] = mapped_column(String)
+    message: Mapped[str] = mapped_column(String)

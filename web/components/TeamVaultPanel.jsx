@@ -1,4 +1,5 @@
 "use client";
+import { signedRequest } from "../lib/gateway.mjs";
 import { useEffect, useMemo, useState } from "react";
 import {
   MemorySealClient,
@@ -18,7 +19,7 @@ import {
 export default function TeamVaultPanel({ account, signal, mode }) {
   const sdk = useMemo(() => {
     const signer = walletSigner(window.ethereum, account);
-    return new MemorySealClient(
+    const client = new MemorySealClient(
       {
         address: account,
         signMessage: async (message) => {
@@ -31,6 +32,15 @@ export default function TeamVaultPanel({ account, signal, mode }) {
       process.env.NEXT_PUBLIC_GATEWAY_URL || "http://localhost:8000",
       process.env.NEXT_PUBLIC_GATEWAY_AUDIENCE || "memoryseal-local",
     );
+    const signedSdkRequest = client.request.bind(client);
+    client.request = (method, path, payload) => method !== "GET"
+      ? signedSdkRequest(method, path, payload, signal)
+      : signedRequest({
+      account, method, path, payload, signal, wallet: window.ethereum, useSession: true,
+      api: process.env.NEXT_PUBLIC_GATEWAY_URL || "http://localhost:8000",
+      audience: process.env.NEXT_PUBLIC_GATEWAY_AUDIENCE || "memoryseal-local",
+    });
+    return client;
   }, [account, signal]);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),

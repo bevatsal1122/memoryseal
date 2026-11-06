@@ -73,6 +73,14 @@ To repeat the optional ENS contract check, install the `contract-test` extra and
 
 `ProtectedTransferClient.execute` raises `SubmissionOutcomeUnknown` if the RPC response is lost, malformed, rejected, or returns a different hash after submission. The exception carries the locally computed `transaction_hash`; inspect it with `client.receipt(hash)` or a trusted explorer before deciding what to do. A missing receipt does not prove the transaction was never submitted or cannot later be included. The SDK does not automatically retry.
 
+## Browser login sessions
+
+Connecting the dashboard asks for one readable wallet signature to start a 30-minute read session. Dashboard refreshes, metadata searches, owner inspection, and team/vault GET requests reuse it. Write requests (including grants, revocations, memory writes and POST reads) still require their existing request-bound signatures; blockchain transactions retain their wallet confirmations. Python and TypeScript SDK authentication is unchanged outside the dashboard adapter.
+
+The gateway issues a five-minute, single-use challenge through `POST /auth/challenge`, verifies the signature through `POST /auth/session`, and returns an opaque bearer token. Session credentials are bound to wallet, configured dashboard origin, gateway audience and expiry; only token hashes are stored in SQLite. Existing endpoint ownership and policy checks still apply. The browser keeps tokens in memory, never localStorage. Sign out, wallet changes and network changes clear them and attempt server revocation through `POST /auth/logout`. If revocation cannot reach the server, the credential expires after 30 minutes. Reloading the page requires a new login. Expired sessions request a fresh signature on the next read.
+
+Deploy the backend before the frontend. Startup migrates SQLite to schema 11; retain the persistent volume and back it up before upgrading. Keep `MEMORYSEAL_DASHBOARD_ORIGINS` set to the exact frontend origin and match `NEXT_PUBLIC_GATEWAY_AUDIENCE` to `MEMORYSEAL_REQUEST_AUDIENCE`. No additional secret or environment variable is needed. If a proxy filters headers, allow `Authorization` and `Origin`. Rate-limit public authentication endpoints at the proxy. Read tokens are credentials: do not log them, and protect the frontend against script injection. This flow uses a MemorySeal-specific login message, not a claim of SIWE compliance, and does not remove wallet-provider reputation warnings.
+
 ## Security boundary
 
 The local gateway checks signed requests and scoped capabilities. Its transfer simulator and the independently enforced Solidity transfer contract use separate policy stores; the contract path must be configured and exercised separately. The current implementation is a development prototype and has not been audited.

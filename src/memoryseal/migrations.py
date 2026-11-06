@@ -5,8 +5,8 @@ from sqlalchemy.engine import Engine
 
 from memoryseal.db import Base
 
-# Version 10 adds team scopes, client-encrypted vault tables, and agent chain bindings.
-SCHEMA_VERSION = 10
+# Version 11 adds short-lived browser login challenges and read sessions.
+SCHEMA_VERSION = 11
 
 
 def migrate(engine: Engine) -> None:

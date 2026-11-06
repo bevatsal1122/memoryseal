@@ -56,6 +56,7 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=[
         "Content-Type",
+        "Authorization",
         "X-Memoryseal-Address",
         "X-Memoryseal-Signature",
         "X-Memoryseal-Timestamp",
@@ -1308,3 +1309,8 @@ from memoryseal.vault import router as vault_router
 
 app.include_router(organization_router)
 app.include_router(vault_router)
+
+
+from memoryseal.browser_sessions import router as browser_session_router
+
+app.include_router(browser_session_router)

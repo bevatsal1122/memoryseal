@@ -1,3 +1,4 @@
+import { browserRead } from "./browser-session.mjs";
 const hex = bytes => Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
 
 export function gatewayOrigin(api, page = globalThis.location) {
@@ -17,9 +18,10 @@ export function gatewayOrigin(api, page = globalThis.location) {
   return url.origin;
 }
 
-export async function signedRequest({ account, method, path, payload, api, audience, wallet, signal }) {
+export async function signedRequest({ account, method, path, payload, api, audience, wallet, signal, useSession = false }) {
   signal?.throwIfAborted();
   const origin = gatewayOrigin(api);
+  if (useSession && method === "GET") return browserRead({ account, path, api: origin, audience, wallet, signal });
   const body = payload === undefined ? "" : JSON.stringify(payload);
   const digest = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body))));
   const timestamp = Math.floor(Date.now() / 1000);

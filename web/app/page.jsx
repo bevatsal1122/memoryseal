@@ -13,6 +13,7 @@ import {
   loadResolverRecovery,
   saveResolverRecovery,
 } from "../lib/resolver-recovery.mjs";
+import { clearBrowserSessions } from "../lib/browser-session.mjs";
 import { gatewayOrigin, signedRequest } from "../lib/gateway.mjs";
 import { memorySearchPath } from "../lib/memory-search.mjs";
 import { capabilityActive, expiryValues } from "../lib/expiry.mjs";
@@ -349,14 +350,17 @@ export default function Dashboard() {
     const wallet = window.ethereum;
     if (!wallet?.on) return;
     const reset = () => {
+      clearBrowserSessions();
       controller.current.abort();
       controller.current = new AbortController();
       setSession((value) => value + 1);
     };
+    window.addEventListener("memoryseal:signout", reset);
     wallet.on("accountsChanged", reset);
     wallet.on("chainChanged", reset);
     wallet.on("disconnect", reset);
     return () => {
+      window.removeEventListener("memoryseal:signout", reset);
       wallet.removeListener?.("accountsChanged", reset);
       wallet.removeListener?.("chainChanged", reset);
       wallet.removeListener?.("disconnect", reset);
@@ -375,6 +379,7 @@ function DashboardSession({ signal }) {
       api,
       audience,
       wallet: window.ethereum,
+      useSession: true,
       signal,
     });
   const [account, setAccount] = useState("");
@@ -513,11 +518,13 @@ function DashboardSession({ signal }) {
     }
   }
   async function refresh(owner) {
-    // Each request is separately signed and receives a unique nonce.
-    const agents = await request(owner, "GET", "/agents");
-    const capabilities = await request(owner, "GET", "/capabilities");
-    const memories = await request(owner, "GET", "/memories");
-    const events = await request(owner, "GET", "/events");
+    // Read requests share the browser login session.
+    const [agents, capabilities, memories, events] = await Promise.all([
+      request(owner, "GET", "/agents"),
+      request(owner, "GET", "/capabilities"),
+      request(owner, "GET", "/memories"),
+      request(owner, "GET", "/events"),
+    ]);
     setData({
       agents: agents.agents,
       capabilities: capabilities.capabilities,
@@ -608,6 +615,13 @@ function DashboardSession({ signal }) {
           >
             <div className="workspace-topbar">
               <div className="topbar-actions">
+                <button
+                  className="refresh-button"
+                  disabled={busy}
+                  onClick={() => window.dispatchEvent(new Event("memoryseal:signout"))}
+                >
+                  Sign out
+                </button>
                 <span className="wallet-chip">
                   {account.slice(0, 6)}…{account.slice(-4)}
                 </span>
@@ -616,7 +630,7 @@ function DashboardSession({ signal }) {
                   disabled={busy}
                   onClick={() => run(() => refresh(account))}
                 >
-                  {busy ? "Waiting for wallet…" : "↻  Refresh"}
+                  {busy ? "Loading…" : "↻  Refresh"}
                 </button>
               </div>
             </div>
