@@ -6,6 +6,7 @@ import WorkspaceGuide from "../components/design/WorkspaceGuide";
 import Landing from "../components/design/Landing";
 import Brand from "../components/design/Brand";
 import NavIcon from "../components/design/NavIcon";
+import MemoryMap from "../components/MemoryMap";
 import AgentSetup from "../components/AgentSetup";
 import MemoryEvidence from "../components/MemoryProof";
 import AgentWorkbench from "../components/AgentWorkbench";
@@ -480,16 +481,6 @@ function DashboardSession({ signal }) {
             {view === "overview" && (
               <WorkspaceGuide
                 agents={activeAgents}
-                capabilities={
-                  data.capabilities.filter(
-                    (c) =>
-                      capabilityActive(c) &&
-                      data.agents.some(
-                        (a) => a.id === c.agent_id && !a.revoked,
-                      ),
-                  ).length
-                }
-                quarantined={quarantineCount}
                 onNavigate={setView}
               />
             )}
@@ -667,7 +658,6 @@ function DashboardSession({ signal }) {
               )}
               </details>
             </section>
-            {view === "overview" && <section className="overview-activity"><h2>Recent activity</h2>{data.events.slice(0, 4).map(event => <p key={event.id}>{event.event_type.replaceAll("_", " ")} · {event.decision}</p>)}{!data.events.length && <p>Your agents’ activity will appear here.</p>}<button onClick={() => setView("activity")}>View activity</button></section>}
             <div className="stats">
               <div>
                 <small>AGENTS</small>
@@ -888,11 +878,13 @@ function DashboardSession({ signal }) {
                 <h2>Memories</h2>
                 <p className="muted">View memories and review exceptions. {data.summary?.auto_publish ? "Proofs publish automatically." : "Automatic proof publication is off; use proof recovery to publish."}</p>
                 <form
+                  className="memory-filters"
                   onSubmit={(e) => {
                     e.preventDefault();
                     run(() => searchMemories(memoryFilter));
                   }}
                 >
+                  <div className="memory-filter-field">
                   <label htmlFor="search-agent">Filter by agent</label>
                   <select
                     id="search-agent"
@@ -911,6 +903,8 @@ function DashboardSession({ signal }) {
                       </option>
                     ))}
                   </select>
+                  </div>
+                  <div className="memory-filter-field">
                   <label htmlFor="search-namespace">Collection</label>
                   <input
                     id="search-namespace"
@@ -923,7 +917,8 @@ function DashboardSession({ signal }) {
                     }
                     placeholder="All namespaces"
                   />
-                  <details><summary>Advanced search</summary>
+                  </div>
+                  <div className="memory-filter-field">
                   <label htmlFor="search-request">Write request ID</label>
                   <input
                     id="search-request"
@@ -940,7 +935,8 @@ function DashboardSession({ signal }) {
                     An empty result does not rule out an in-flight write. Retry
                     an uncertain write with the same request ID.
                   </small>
-                  </details>
+                  </div>
+                  <div className="memory-filter-field">
                   <label htmlFor="search-status">Status</label>
                   <select
                     id="search-status"
@@ -956,6 +952,7 @@ function DashboardSession({ signal }) {
                     <option value="accepted">Accepted</option>
                     <option value="quarantined">Quarantined</option>
                   </select>
+                  </div>
                   <small className="muted">Filters update automatically.</small>
                 </form>
                 <p className="muted">
@@ -967,14 +964,27 @@ function DashboardSession({ signal }) {
                   Showing {memoryPage.memories.length} records starting at{" "}
                   {memoryOffset + 1}.
                 </p>
+                <MemoryMap memories={memoryPage.memories} agents={data.agents} busy={busy}
+                  onInspect={m => run(async () => {
+                    setCommitmentCheck(null);
+                    const content = await request(account, "GET", `/memories/${m.id}`);
+                    setDetail(content);
+                    setCommitmentCheck(await verifyMemoryCommitment(content.content, content.commitment_salt, content.commitment));
+                    requestAnimationFrame(() => document.querySelector(".memory-content-detail")?.scrollIntoView({behavior: "smooth", block: "center"}));
+                  })}
+                  onParent={id => run(() => searchMemories({memoryId: id}))}
+                />
                 {memoryPage.memories.length === 0 ? (
                   <p className="muted">No matching memories.</p>
                 ) : (
                   memoryPage.memories.map((m) => (
-                    <div className="row" key={m.id}>
-                      <div>
-                        <b>{m.namespace} {m.category.replaceAll("_", " ")}</b>
+                    <div className="row memory-record" key={m.id}>
+                      <div className="memory-record-main">
+                        <div className="memory-record-heading">
+                        <span className="memory-collection">{m.namespace}</span>
+                        <h3>{m.category.replaceAll("_", " ")}</h3>
                         <small>{data.agents.find(a => a.id === m.agent_id)?.label || data.agents.find(a => a.id === m.agent_id)?.ens_name || "Agent " + m.agent_id.slice(0, 8)} · {new Date(/[Zz]|[+-]\d{2}:\d{2}$/.test(m.created_at) ? m.created_at : m.created_at + "Z").toLocaleString()}</small>
+                        </div>
                         <MemoryEvidence
                           memory={m}
                           observation={provenanceObservations[m.id]}
@@ -1077,7 +1087,7 @@ function DashboardSession({ signal }) {
                           }
                         />
                       </div>
-                      <div>
+                      <div className="memory-record-actions">
                         <span
                           className={
                             "pill " +
@@ -1167,7 +1177,7 @@ function DashboardSession({ signal }) {
                   </div>
                 )}
                 {detail && (
-                  <div className="detail">
+                  <div className="detail memory-content-detail">
                     <b>Memory content</b>
                     <p>{detail.content}</p>
                     <small>

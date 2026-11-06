@@ -79,3 +79,9 @@ A cancelled or expired login can require a new signature. Switching accounts or 
 Deploy backend and frontend together, backend first. Back up the database volume before the schema 13 migration. Preserve the encryption key, publisher key, domain origins and existing provider configuration. Older gateways reject the newer schema; restore a backup for a deliberate rollback rather than running old code against it.
 
 Validation performed locally: 266 Python tests passed, 6 skipped; 12 browser-transport tests passed; 4 TypeScript SDK tests passed, including live HTTP team isolation, encrypted sharing, rotation, rollback and exact batch retry. Production Next build passed. Browser QA used an isolated local database, synthetic inference and disposable wallet signing accounts: agent setup took one signature; saving took one signature; reading added none. These tests do not represent new production-chain transactions or a real MetaMask confirmation run.
+
+## Memory relationship map
+
+The Memories page includes an interactive bubble map of the current filtered results (up to 100 records per page). Arrows represent explicit parent-to-child relationships only. Green means available, peach means needs review, and lavender means currently withheld. Dashed bubbles mark parent IDs outside the current page or filters; **Find parent** performs the existing owner-scoped search. Bubble size reflects visible link count, not truth, confidence or importance.
+
+Select a bubble to highlight its immediate connections and open the existing memory inspection flow. Pan by dragging the canvas; use zoom controls and Reset view. Bubbles support keyboard selection with Enter or Space. The original list and review controls remain available. No additional wallet signature or backend migration is introduced by the map.

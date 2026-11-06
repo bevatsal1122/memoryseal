@@ -1,7 +1,5 @@
 export default function WorkspaceGuide({
   agents,
-  capabilities,
-  quarantined,
   onNavigate,
 }) {
   const steps = [
@@ -43,28 +41,6 @@ export default function WorkspaceGuide({
             <span aria-hidden="true">↗</span>
           </button>
         ))}
-      </div>
-      <div className="workspace-shortcuts">
-        <button onClick={() => onNavigate("memories")}>
-          <span className="shortcut-icon peach">▤</span>
-          <span>
-            <b>
-              {quarantined
-                ? `${quarantined} memories need review`
-                : "Explore your memories"}
-            </b>
-            <small>Read memories and review exceptions</small>
-          </span>
-          <span aria-hidden="true">→</span>
-        </button>
-        <button onClick={() => onNavigate("vault")}>
-          <span className="shortcut-icon lavender">▣</span>
-          <span>
-            <b>Need client-held encryption?</b>
-            <small>Create a vault with keys on your device</small>
-          </span>
-          <span aria-hidden="true">→</span>
-        </button>
       </div>
     </div>
   );
