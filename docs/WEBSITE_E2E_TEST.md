@@ -110,6 +110,10 @@ Amounts are integer token base units. For this 18-decimal test token, 1 token is
 | Protected wallet action | `web/lib/chain.mjs` | `web/test/chain.test.mjs`: real local EVM, over-limit/stale-policy refusal, successful recipient balance delta |
 | Python SDK | `src/memoryseal/client.py`: `agent_access`, `review_memory`, `publish_memory_event`, `reconcile_memory_event` | Signed TestClient transport and gateway tests |
 
-## Boundaries still outstanding
+## Expanded feature follow-up
 
-Private 0G inference with independently verified deployment and request/response binding is still blocked; switching model/provider alone does not establish it. This release provides a clearly separate owner-review route for testing shared memories. It does not implement client-held encryption keys or online key rotation: encrypted storage is gateway-held, and rotation is the existing offline snapshot procedure. Production hardening, cumulative budgets and the specification's P2 items (additional framework adapters, TypeScript SDK, Swarm, multi-chain and smart-account integrations) are not claimed complete. Real-wallet and live provider acceptance still need the steps above.
+Organization policies, a TypeScript SDK, opt-in client-encrypted namespaces, online vault-key rotation and explicit multi-EVM chain routing have now been added. Continue with [TEAM_VAULT_MULTICHAIN.md](TEAM_VAULT_MULTICHAIN.md) for their separate setup and test flows. The original memory/inference steps above remain valid.
+
+## Boundaries still outstanding (original workflow)
+
+Private 0G inference with independently verified deployment and request/response binding is still blocked; switching model/provider alone does not establish it. This release provides a clearly separate owner-review route for testing shared memories. The original memory mode remains gateway-encrypted with offline snapshot rotation. The new encrypted vault adds client-held keys and online namespace rotation as an explicit separate mode. Production hardening, cumulative budgets and the specification's P2 items (additional framework adapters, Swarm, non-EVM chains and production smart-account integrations) are not claimed complete. Real-wallet and live provider acceptance still need the steps above.

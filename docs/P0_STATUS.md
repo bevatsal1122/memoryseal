@@ -2,6 +2,14 @@
 
 Status: **in progress**. This is a development prototype; local test success is not a live deployment or security audit. The acceptance target is the complete security workflow in the technical specification, including real ENS, Arkiv and 0G integrations and an enforced action.
 
+## Expanded feature update — 6 November 2026
+
+Organization policies, the local TypeScript SDK, opt-in client-encrypted namespaces, online namespace-key rotation and explicit multi-EVM chain routing are now implemented. Vault lifecycle metadata uses the existing conservative Arkiv outbox mechanism. See [the feature and test guide](TEAM_VAULT_MULTICHAIN.md) and [SDK README](../sdk/typescript/README.md).
+
+The new encrypted mode does not run server-side inference; human release is separate from verified 0G inference. Existing gateway-encrypted records retain their storage mode and offline key-rotation procedure. Additional live chains still require actual deployment configuration/funding. No non-EVM support, cross-chain synchronization, organization multisig custody, or independently attested client-to-provider inference is claimed.
+
+The sections below describe earlier milestones; their references to missing client-held keys, online rotation, TypeScript and multi-chain support are superseded **for the new modes described above**, not retroactive guarantees for legacy data or unconfigured live deployments.
+
 ## Website workflow update — 6 November 2026
 
 Implemented the agent console (signed writes, author acknowledgements, reads, local simulations and protected wallet transfers), owner-signed review of low-risk observations, targeted Arkiv publication/reconciliation controls, and matching SDK operations. Schema v9 records exact owner-reviewed commitments; provenance v8 binds signed review evidence. Reviewed memories retain unverified inference and untrusted content labels. Instructions, external content, authorization claims and unsafe ancestry cannot be released through this route.

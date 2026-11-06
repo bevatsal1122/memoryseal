@@ -143,3 +143,16 @@ test("event lookup rejects skipped or malformed query pages", async () => {
     limit() { return this; }, async fetch() { return { entities: [], skipped: 1 }; } };
   await assert.rejects(findEvent({ select: () => chain }, "0x" + "1".repeat(40), "12345678-1234-1234-1234-123456789abc"), /incomplete/);
 });
+
+test("vault provenance publishes only public lifecycle metadata", async () => {
+  const id="12345678-1234-1234-1234-123456789abc",address="0x"+"1".repeat(40);
+  const event={schema:"memoryseal.vault-event.v1",event_id:id,memory_id:id,agent_id:id,
+    owner:address,agent_address:address,actor_address:address,event_type:"vault_written",
+    commitment:"a".repeat(64),key_version:1,revision:1,status:"quarantined",
+    content:"secret",envelope:{ciphertext:"secret"},namespace:"private-name"};
+  let published;
+  await publishMemoryEvent({createEntity:async(_schema,values)=>{published=values;return {}}},event);
+  assert.equal(published.key_version,"1");
+  for(const field of ['content','envelope','namespace'])assert.equal(field in published,false);
+  assert.throws(()=>publicValues({...event,revision:0}));
+});

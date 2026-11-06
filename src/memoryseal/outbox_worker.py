@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from memoryseal.arkiv_runner import run_arkiv
 from memoryseal.config import settings
-from memoryseal.models import ProvenanceOutbox
+from memoryseal.models import ProvenanceOutbox, VaultOutbox
 
 PUBLISHER = Path(__file__).resolve().parents[2] / "integrations/arkiv/publish.mjs"
 
@@ -74,6 +74,7 @@ def publish_one(
     memory_id: str | None = None,
     event_id: str | None = None,
     runner=run_arkiv,
+    model=ProvenanceOutbox,
 ) -> str | None:
     """Claim one event; an interrupted publish is uncertain and never auto-retried.
 
@@ -87,44 +88,42 @@ def publish_one(
         creator = Account.from_key(env["MEMORYSEAL_ARKIV_PRIVATE_KEY"]).address.lower()
     except (ValueError, TypeError):
         return "not_configured"
-    query = select(ProvenanceOutbox.id).where(ProvenanceOutbox.state == "pending")
+    query = select(model.id).where(model.state == "pending")
     if event_id is not None:
-        query = query.where(ProvenanceOutbox.id == event_id)
+        query = query.where(model.id == event_id)
     if memory_id is not None:
-        query = query.where(ProvenanceOutbox.memory_id == memory_id)
+        query = query.where(model.memory_id == memory_id)
     else:
         # Do not let an event bound to an older creator starve unrelated events.
         # Targeted publishes still report creator_mismatch for that specific item.
         query = query.where(
             or_(
-                ProvenanceOutbox.creator_address.is_(None),
-                ProvenanceOutbox.creator_address == creator,
+                model.creator_address.is_(None),
+                model.creator_address == creator,
             )
         )
-    entry_id = session.scalar(query.order_by(ProvenanceOutbox.created_at).limit(1))
+    entry_id = session.scalar(query.order_by(model.created_at).limit(1))
     if entry_id is None:
         if memory_id is not None:
             return "not_pending"
-        other_pending = session.scalar(
-            select(ProvenanceOutbox.id).where(ProvenanceOutbox.state == "pending").limit(1)
-        )
+        other_pending = session.scalar(select(model.id).where(model.state == "pending").limit(1))
         return "creator_mismatch" if other_pending is not None else None
     attempt_id = str(uuid4())
     result = session.execute(
-        update(ProvenanceOutbox)
+        update(model)
         .where(
-            ProvenanceOutbox.id == entry_id,
-            ProvenanceOutbox.state == "pending",
+            model.id == entry_id,
+            model.state == "pending",
             or_(
-                ProvenanceOutbox.creator_address.is_(None),
-                ProvenanceOutbox.creator_address == creator,
+                model.creator_address.is_(None),
+                model.creator_address == creator,
             ),
         )
         .values(state="publishing", creator_address=creator, attempt_id=attempt_id)
     )
     if result.rowcount != 1:
         session.rollback()
-        current = session.get(ProvenanceOutbox, entry_id)
+        current = session.get(model, entry_id)
         if (
             current is not None
             and current.state == "pending"
@@ -135,7 +134,7 @@ def publish_one(
         return "state_changed"
     session.commit()
     session.expire_all()
-    entry = session.get(ProvenanceOutbox, entry_id)
+    entry = session.get(model, entry_id)
     if entry is None or entry.state != "publishing" or entry.attempt_id != attempt_id:
         return "state_changed"
     payload = entry.payload
@@ -160,26 +159,26 @@ def publish_one(
             raise ValueError("invalid Arkiv transaction hash")
     except (subprocess.SubprocessError, OSError, ValueError, KeyError, TypeError):
         changed = session.execute(
-            update(ProvenanceOutbox)
+            update(model)
             .where(
-                ProvenanceOutbox.id == entry_id,
-                ProvenanceOutbox.state == "publishing",
-                ProvenanceOutbox.attempt_id == attempt_id,
-                ProvenanceOutbox.creator_address == creator,
-                ProvenanceOutbox.payload == payload,
+                model.id == entry_id,
+                model.state == "publishing",
+                model.attempt_id == attempt_id,
+                model.creator_address == creator,
+                model.payload == payload,
             )
             .values(state="uncertain")
         )
         session.commit()
         return "uncertain" if changed.rowcount == 1 else "state_changed"
     changed = session.execute(
-        update(ProvenanceOutbox)
+        update(model)
         .where(
-            ProvenanceOutbox.id == entry_id,
-            ProvenanceOutbox.state == "publishing",
-            ProvenanceOutbox.attempt_id == attempt_id,
-            ProvenanceOutbox.creator_address == creator,
-            ProvenanceOutbox.payload == payload,
+            model.id == entry_id,
+            model.state == "publishing",
+            model.attempt_id == attempt_id,
+            model.creator_address == creator,
+            model.payload == payload,
         )
         .values(state="published", entity_key=entity_key, transaction_hash=tx_hash)
     )
@@ -187,23 +186,25 @@ def publish_one(
     return "published" if changed.rowcount == 1 else "state_changed"
 
 
-def recover_interrupted(session: Session, event_id: str) -> str:
+def recover_interrupted(session: Session, event_id: str, *, model=ProvenanceOutbox) -> str:
     """Move a stopped worker's in-flight claim to uncertain, without sending anything.
 
     The operator must establish that the worker and its child process have stopped.
     """
     changed = session.execute(
-        update(ProvenanceOutbox)
-        .where(ProvenanceOutbox.id == event_id, ProvenanceOutbox.state == "publishing")
+        update(model)
+        .where(model.id == event_id, model.state == "publishing")
         .values(state="uncertain")
     )
     session.commit()
     return "uncertain" if changed.rowcount == 1 else "not_publishing"
 
 
-def reconcile_one(session: Session, event_id: str, *, runner=run_arkiv) -> str:
+def reconcile_one(
+    session: Session, event_id: str, *, runner=run_arkiv, model=ProvenanceOutbox
+) -> str:
     """Read Arkiv only; never republish an ambiguous event automatically."""
-    entry = session.get(ProvenanceOutbox, event_id)
+    entry = session.get(model, event_id)
     if entry is None or entry.state != "uncertain":
         raise ValueError("event must exist and be uncertain")
     creator = entry.creator_address or settings.arkiv_creator_address
@@ -238,12 +239,12 @@ def reconcile_one(session: Session, event_id: str, *, runner=run_arkiv) -> str:
     except (subprocess.SubprocessError, OSError, ValueError, KeyError, TypeError, AttributeError):
         return "uncertain"
     changed = session.execute(
-        update(ProvenanceOutbox)
+        update(model)
         .where(
-            ProvenanceOutbox.id == event_id,
-            ProvenanceOutbox.state == "uncertain",
-            ProvenanceOutbox.creator_address == original_creator,
-            ProvenanceOutbox.payload == original_payload,
+            model.id == event_id,
+            model.state == "uncertain",
+            model.creator_address == original_creator,
+            model.payload == original_payload,
         )
         .values(state="published", entity_key=key, creator_address=observed_creator)
     )
@@ -298,6 +299,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="Publish one pending event or reconcile an uncertain event"
     )
+    parser.add_argument(
+        "--vault", action="store_true", help="operate on encrypted-vault provenance"
+    )
     actions = parser.add_mutually_exclusive_group()
     actions.add_argument("--reconcile", metavar="EVENT_ID")
     actions.add_argument(
@@ -310,13 +314,14 @@ def main():
     )
     args = parser.parse_args()
     migrate(engine)
+    model = VaultOutbox if args.vault else ProvenanceOutbox
     with SessionLocal() as session:
         if args.reconcile:
-            outcome = reconcile_one(session, args.reconcile)
+            outcome = reconcile_one(session, args.reconcile, model=model)
         elif args.recover_interrupted:
-            outcome = recover_interrupted(session, args.recover_interrupted)
+            outcome = recover_interrupted(session, args.recover_interrupted, model=model)
         else:
-            outcome = publish_one(session, memory_id=args.memory_id)
+            outcome = publish_one(session, memory_id=args.memory_id, model=model)
     print(outcome or "empty")
 
 

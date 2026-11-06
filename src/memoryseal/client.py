@@ -137,6 +137,44 @@ class MemorySealClient:
     def _post(self, path: str, data: dict, *, timeout=15.0) -> dict:
         return self._request("POST", path, data, timeout=timeout)
 
+    def organizations(self) -> dict:
+        return self._request("GET", "/organizations")
+
+    def create_organization(self, name: str) -> dict:
+        return self._post("/organizations", {"name": name})
+
+    def organization(self, organization_id: str) -> dict:
+        return self._request("GET", f"/organizations/{UUID(organization_id)}")
+
+    def set_organization_member(
+        self, organization_id: str, address: str, role: str, expected_version: int
+    ) -> dict:
+        return self._post(
+            f"/organizations/{UUID(organization_id)}/members",
+            {"address": address, "role": role, "expected_version": expected_version},
+        )
+
+    def organization_grant(self, organization_id: str, **capability) -> dict:
+        return self._post(f"/organizations/{UUID(organization_id)}/capabilities", capability)
+
+    def chains(self) -> dict:
+        return self._request("GET", "/chains")
+
+    def encrypted_namespaces(self) -> dict:
+        return self._request("GET", "/vault/namespaces")
+
+    def encrypted_records(
+        self, namespace_id: str, *, after: str = "", old_only: bool = False
+    ) -> dict:
+        return self._request(
+            "GET",
+            f"/vault/namespaces/{UUID(namespace_id)}/records?"
+            + urlencode({"after": after, "old_only": str(old_only).lower()}),
+        )
+
+    def rotation_status(self, namespace_id: str) -> dict:
+        return self._request("GET", f"/vault/namespaces/{UUID(namespace_id)}/rotation")
+
     def integration_readiness(self) -> dict:
         return self._request("GET", "/integrations/readiness")
 
@@ -293,9 +331,20 @@ class MemorySealClient:
     def list_events(self) -> dict:
         return self._request("GET", "/events")
 
-    def register_agent(self, signing_address: str, ens_name: str | None = None) -> dict:
+    def register_agent(
+        self,
+        signing_address: str,
+        ens_name: str | None = None,
+        *,
+        policy_chain_id: int | None = None,
+    ) -> dict:
         return self._post(
-            "/agents/register", {"signing_address": signing_address, "ens_name": ens_name}
+            "/agents/register",
+            {
+                "signing_address": signing_address,
+                "ens_name": ens_name,
+                "policy_chain_id": policy_chain_id,
+            },
         )
 
     def revoke_agent(self, agent_id: str) -> dict:
@@ -435,8 +484,9 @@ class MemorySealClient:
             },
         )
 
-    def observe_onchain_deployment(self) -> dict:
-        return self._request("GET", "/onchain/observe-deployment", timeout=70.0)
+    def observe_onchain_deployment(self, *, chain_id: int | None = None) -> dict:
+        suffix = "" if chain_id is None else "?" + urlencode({"chain_id": chain_id})
+        return self._request("GET", "/onchain/observe-deployment" + suffix, timeout=70.0)
 
     def observe_token_balance(self, *, token: str, recipient: str, block_number: int) -> dict:
         return self._post(

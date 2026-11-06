@@ -30,6 +30,7 @@ from memoryseal.cors import dashboard_origins
 from memoryseal.db import engine, get_session
 from memoryseal.migrations import migrate
 from memoryseal.models import Agent, AuditEvent, Capability, Memory, PolicyState, ProvenanceOutbox
+from memoryseal.networks import network, public_networks
 from memoryseal.onchain import OnchainReceiptVerifier, RpcError
 from memoryseal.onchain_deployment import observe_deployment
 from memoryseal.outbox_worker import observe_published, publish_one, reconcile_one
@@ -132,9 +133,10 @@ def integration_readiness(_signer: Annotated[str, Depends(authenticate)]):
             settings.connection_attestation_verifier_sha256,
         ),
         "arkiv_publisher_configured": bool(settings.arkiv_private_key),
-        "onchain_observer_configured": bool(
+        "onchain_observer_configured": bool(settings.chains)
+        or bool(
             settings.onchain_rpc_url
-            and settings.onchain_chain_id == 11155111
+            and settings.onchain_chain_id
             and is_address(settings.onchain_registry or "")
             and int(settings.onchain_registry, 16) != 0
             and is_address(settings.onchain_executor or "")
@@ -146,6 +148,7 @@ def integration_readiness(_signer: Annotated[str, Depends(authenticate)]):
 
 class AgentRegistration(BaseModel):
     signing_address: str
+    policy_chain_id: int | None = Field(default=None, gt=0, le=2**53 - 1, strict=True)
     # Metadata only until ENS resolution is implemented; never used for authentication.
     ens_name: str | None = Field(default=None, max_length=255)
 
@@ -163,7 +166,10 @@ def register_agent(
     owner: Annotated[str, Depends(authenticate)],
     session: Annotated[Session, Depends(get_session)],
 ):
+    if data.policy_chain_id is not None:
+        network(data.policy_chain_id)
     agent = Agent(
+        policy_chain_id=data.policy_chain_id,
         id=str(uuid4()),
         owner_address=owner,
         signing_address=data.signing_address,
@@ -188,6 +194,7 @@ def register_agent(
         "owner_address": owner,
         "signing_address": agent.signing_address,
         "ens_name": agent.ens_name,
+        "policy_chain_id": agent.policy_chain_id,
         "ens_verified": False,
         "revoked": agent.revoked,
     }
@@ -204,6 +211,7 @@ def list_agents(
                 "id": agent.id,
                 "signing_address": agent.signing_address,
                 "ens_name": agent.ens_name,
+                "policy_chain_id": agent.policy_chain_id,
                 "ens_verified": False,
                 "revoked": agent.revoked,
             }
@@ -254,6 +262,7 @@ def agent_access(
                 "owner_address": agent.owner_address,
                 "signing_address": agent.signing_address,
                 "ens_name": agent.ens_name,
+                "policy_chain_id": agent.policy_chain_id,
                 "revoked": agent.revoked,
                 "policy_version": (
                     state.version if (state := session.get(PolicyState, agent.owner_address)) else 0
@@ -770,23 +779,26 @@ def observe_ens(
 
 
 @app.get("/onchain/observe-deployment")
-def observe_onchain_deployment(_signer: Annotated[str, Depends(authenticate)]):
-    """Observe the configured executor's registry at a single RPC block."""
+def observe_onchain_deployment(
+    _signer: Annotated[str, Depends(authenticate)], chain_id: int | None = None
+):
+    """Observe the selected executor's registry at a single RPC block."""
+    selected = network(chain_id)
     if not all(
         (
-            settings.onchain_rpc_url,
-            settings.onchain_chain_id,
-            settings.onchain_registry,
-            settings.onchain_executor,
+            selected.onchain_rpc_url,
+            selected.onchain_chain_id,
+            selected.onchain_registry,
+            selected.onchain_executor,
         )
     ):
         raise HTTPException(status_code=503, detail="onchain deployment observer is not configured")
     try:
         result = observe_deployment(
-            rpc_url=settings.onchain_rpc_url,
-            chain_id=settings.onchain_chain_id,
-            registry=settings.onchain_registry,
-            executor=settings.onchain_executor,
+            rpc_url=selected.onchain_rpc_url,
+            chain_id=selected.onchain_chain_id,
+            registry=selected.onchain_registry,
+            executor=selected.onchain_executor,
         )
     except (RpcError, ValueError) as exc:
         raise HTTPException(status_code=502, detail="could not observe onchain deployment") from exc
@@ -841,14 +853,17 @@ class TokenBalanceObservation(BaseModel):
 
 @app.post("/actions/observe-token-balance")
 def observe_token_balance(
-    data: TokenBalanceObservation, _owner: Annotated[str, Depends(authenticate)]
+    data: TokenBalanceObservation,
+    _owner: Annotated[str, Depends(authenticate)],
+    chain_id: int | None = None,
 ):
-    if not settings.onchain_rpc_url or not settings.onchain_chain_id:
+    selected = network(chain_id)
+    if not selected.onchain_rpc_url or not selected.onchain_chain_id:
         raise HTTPException(status_code=503, detail="onchain observer is not configured")
     try:
         observation = observe_balance_delta(
-            rpc_url=settings.onchain_rpc_url,
-            chain_id=settings.onchain_chain_id,
+            rpc_url=selected.onchain_rpc_url,
+            chain_id=selected.onchain_chain_id,
             token=data.token,
             recipient=data.recipient,
             block_number=data.block_number,
@@ -857,7 +872,7 @@ def observe_token_balance(
         raise HTTPException(status_code=502, detail="could not observe token balances") from exc
     return {
         "observation": observation,
-        "chain_id": settings.onchain_chain_id,
+        "chain_id": selected.onchain_chain_id,
         "source": "configured_rpc",
         "finalized": False,
     }
@@ -896,20 +911,22 @@ def observe_onchain_grant(
     data: OnchainGrantObservation,
     owner: Annotated[str, Depends(authenticate)],
     session: Annotated[Session, Depends(get_session)],
+    chain_id: int | None = None,
 ):
+    selected = network(chain_id)
     agent = owned_agent(session, data.agent_id, owner)
     if (
-        not settings.onchain_rpc_url
-        or not settings.onchain_chain_id
-        or not settings.onchain_registry
+        not selected.onchain_rpc_url
+        or not selected.onchain_chain_id
+        or not selected.onchain_registry
     ):
         raise HTTPException(status_code=503, detail="onchain registry observer is not configured")
     try:
         verifier = OnchainReceiptVerifier(
-            settings.onchain_rpc_url,
+            selected.onchain_rpc_url,
             owner,
-            chain_id=settings.onchain_chain_id,
-            executor=settings.onchain_registry,
+            chain_id=selected.onchain_chain_id,
+            executor=selected.onchain_registry,
         )
         try:
             observation = verifier.verify_transfer_grant(
@@ -928,8 +945,8 @@ def observe_onchain_grant(
         "observation": observation,
         "source": "configured_rpc",
         "finalized": False,
-        "chain_id": settings.onchain_chain_id,
-        "registry": settings.onchain_registry,
+        "chain_id": selected.onchain_chain_id,
+        "registry": selected.onchain_registry,
     }
 
 
@@ -938,20 +955,22 @@ def observe_onchain(
     data: OnchainObservation,
     owner: Annotated[str, Depends(authenticate)],
     session: Annotated[Session, Depends(get_session)],
+    chain_id: int | None = None,
 ):
+    selected = network(chain_id)
     agent = owned_agent(session, data.agent_id, owner)
     if (
-        not settings.onchain_rpc_url
-        or not settings.onchain_chain_id
-        or not settings.onchain_executor
+        not selected.onchain_rpc_url
+        or not selected.onchain_chain_id
+        or not selected.onchain_executor
     ):
         raise HTTPException(status_code=503, detail="onchain observer is not configured")
     try:
         verifier = OnchainReceiptVerifier(
-            settings.onchain_rpc_url,
+            selected.onchain_rpc_url,
             agent.signing_address,
-            chain_id=settings.onchain_chain_id,
-            executor=settings.onchain_executor,
+            chain_id=selected.onchain_chain_id,
+            executor=selected.onchain_executor,
         )
         try:
             observation = verifier.verify_transfer(
@@ -970,8 +989,8 @@ def observe_onchain(
         # An RPC observation can be reorged later; this is not a finality claim.
         detail = json.dumps(
             {
-                "chain_id": settings.onchain_chain_id,
-                "executor": settings.onchain_executor,
+                "chain_id": selected.onchain_chain_id,
+                "executor": selected.onchain_executor,
                 "agent_id": data.agent_id,
                 "token": data.token,
                 "recipient": data.recipient,
@@ -1000,8 +1019,8 @@ def observe_onchain(
         "observation": observation,
         "source": "configured_rpc",
         "finalized": False,
-        "chain_id": settings.onchain_chain_id,
-        "executor": settings.onchain_executor,
+        "chain_id": selected.onchain_chain_id,
+        "executor": selected.onchain_executor,
     }
 
 
@@ -1277,3 +1296,15 @@ def read_memory(
     session: Annotated[Session, Depends(get_session)],
 ):
     return memory_service.read(session, signer=signer, **data.model_dump())
+
+
+@app.get("/chains")
+def list_chains(_signer: Annotated[str, Depends(authenticate)]):
+    return {"chains": public_networks()}
+
+
+from memoryseal.organizations import router as organization_router
+from memoryseal.vault import router as vault_router
+
+app.include_router(organization_router)
+app.include_router(vault_router)

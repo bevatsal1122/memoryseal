@@ -1,13 +1,24 @@
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from memoryseal.networks import ChainConfig
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MEMORYSEAL_", env_file=".env", extra="ignore", env_ignore_empty=True
     )
+
+    chains: list[ChainConfig] = Field(default_factory=list)
+
+    @field_validator("chains")
+    @classmethod
+    def unique_chains(cls, value):
+        if len({c.chain_id for c in value}) != len(value):
+            raise ValueError("duplicate chain IDs")
+        return value
 
     database_url: str = "sqlite:///./memoryseal.db"
     encryption_key: str | None = None

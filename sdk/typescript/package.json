@@ -1,0 +1,32 @@
+{
+  "name": "@memoryseal/sdk",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Signed MemorySeal client and client-held encryption for Node and browsers",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "viem": "^2.57.16"
+  }
+}

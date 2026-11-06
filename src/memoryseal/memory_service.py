@@ -31,7 +31,16 @@ from memoryseal.encryption import (
 )
 from memoryseal.firewall import is_authorization_claim
 from memoryseal.inference import InferenceError, ThreatAnalysis, ZeroGClassifier
-from memoryseal.models import Agent, AuditEvent, Capability, Memory, PolicyState, ProvenanceOutbox
+from memoryseal.models import (
+    Agent,
+    AuditEvent,
+    Capability,
+    Memory,
+    PolicyState,
+    ProvenanceOutbox,
+    VaultNamespace,
+)
+from memoryseal.networks import network
 from memoryseal.policy import evaluate
 from memoryseal.provenance import memory_created, memory_origin_attested, memory_quarantined
 from memoryseal.zero_g_provider_verifier import provider_verifier_configured, verify_provider_quote
@@ -115,17 +124,18 @@ def authorize(
     ).allowed:
         deny("namespace access denied")
     if settings.require_onchain_memory:
+        selected = network(agent.policy_chain_id)
         if (
-            not settings.onchain_rpc_url
-            or not settings.onchain_chain_id
-            or not settings.onchain_registry
+            not selected.onchain_rpc_url
+            or not selected.onchain_chain_id
+            or not selected.onchain_registry
         ):
             raise HTTPException(status_code=503, detail="onchain memory policy not configured")
         try:
             permitted = chain_memory_allowed(
-                rpc_url=settings.onchain_rpc_url,
-                chain_id=settings.onchain_chain_id,
-                registry=settings.onchain_registry,
+                rpc_url=selected.onchain_rpc_url,
+                chain_id=selected.onchain_chain_id,
+                registry=selected.onchain_registry,
                 owner=agent.owner_address,
                 agent=agent.signing_address,
                 namespace=namespace,
@@ -155,6 +165,15 @@ def write(
     session.execute(text("BEGIN IMMEDIATE"))
     session.expire_all()
     agent, version = authorize(session, agent_id, signer, "write", namespace)
+    if session.scalar(
+        select(VaultNamespace).where(
+            VaultNamespace.owner_address == agent.owner_address,
+            VaultNamespace.namespace == namespace,
+        )
+    ):
+        raise HTTPException(
+            409, "client-encrypted namespace: use the vault API; plaintext writes are disabled"
+        )
     digest = None
     if request_id:
         digest = write_digest(
@@ -478,6 +497,15 @@ def write(
     session.execute(text("BEGIN IMMEDIATE"))
     session.expire_all()
     agent, version = authorize(session, agent_id, signer, "write", namespace)
+    if session.scalar(
+        select(VaultNamespace).where(
+            VaultNamespace.owner_address == agent.owner_address,
+            VaultNamespace.namespace == namespace,
+        )
+    ):
+        raise HTTPException(
+            409, "client-encrypted namespace: use the vault API; plaintext writes are disabled"
+        )
     prior = existing_request()
     if prior:
         session.commit()

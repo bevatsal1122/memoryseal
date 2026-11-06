@@ -64,7 +64,14 @@ export const MemoryEventsV8 = defineSchema("memoryseal.memory-event.v8", {
   request_timestamp: str(), request_nonce: str(), request_body_sha256: str(), request_signature: str(),
 });
 
+export const VaultEvents = defineSchema("memoryseal.vault-event.v1", {
+  event_id: str().indexed(), memory_id: str().indexed(), owner: str().indexed(),
+  agent_id: str(), agent_address: str().indexed(), actor_address: str(), event_type: str(),
+  commitment: str(), key_version: str(), revision: str(), status: str(),
+});
+
 function schemaFor(name) {
+  if (name === "memoryseal.vault-event.v1") return VaultEvents;
   if (name === "memoryseal.memory-event.v1") return MemoryEvents;
   if (name === "memoryseal.memory-event.v2") return MemoryEventsV2;
   if (name === "memoryseal.memory-event.v3") return MemoryEventsV3;
@@ -91,6 +98,16 @@ export function connectArkivReader({ accessKey = "" } = {}) {
 }
 
 export function publicValues(event) {
+  if (event.schema === "memoryseal.vault-event.v1") {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+    if (![event.event_id,event.memory_id,event.agent_id].every(v=>uuid.test(v)) ||
+      ![event.owner,event.agent_address,event.actor_address].every(v=>/^0x[0-9a-f]{40}$/.test(v)) ||
+      !/^[0-9a-f]{64}$/.test(event.commitment) || !["released","quarantined"].includes(event.status) ||
+      !["vault_written","vault_released","vault_quarantined","vault_rewrapped"].includes(event.event_type) ||
+      ![event.key_version,event.revision].every(v=>Number.isSafeInteger(v)&&v>0)) throw new Error("invalid vault metadata");
+    return Object.fromEntries(["event_id","memory_id","owner","agent_id","agent_address","actor_address","event_type","commitment","key_version","revision","status"].map(k=>[k,String(event[k])]));
+  }
+
   const review = event.schema === "memoryseal.memory-event.v8";
   const v6 = event.schema === "memoryseal.memory-event.v6";
   const origin = event.schema === "memoryseal.memory-event.v7";

@@ -5,8 +5,8 @@ from sqlalchemy.engine import Engine
 
 from memoryseal.db import Base
 
-# Version 9 records exact commitments explicitly reviewed by the owner.
-SCHEMA_VERSION = 9
+# Version 10 adds team scopes, client-encrypted vault tables, and agent chain bindings.
+SCHEMA_VERSION = 10
 
 
 def migrate(engine: Engine) -> None:
@@ -19,6 +19,9 @@ def migrate(engine: Engine) -> None:
             if version > SCHEMA_VERSION:
                 raise RuntimeError("database schema is newer than this gateway")
             Base.metadata.create_all(connection)
+            agent_columns = {c["name"] for c in inspect(connection).get_columns("agents")}
+            if "policy_chain_id" not in agent_columns:
+                connection.exec_driver_sql("ALTER TABLE agents ADD COLUMN policy_chain_id INTEGER")
             columns = {column["name"] for column in inspect(connection).get_columns("memories")}
             if "encryption_nonce" not in columns:
                 count = connection.execute(text("SELECT count(*) FROM memories")).scalar_one()

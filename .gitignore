@@ -13,3 +13,5 @@ contracts/artifacts/
 
 .demo.env
 .ens-demo-registration.json
+
+sdk/typescript/dist/
