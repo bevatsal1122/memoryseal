@@ -153,7 +153,7 @@ a {
   font-weight: 700;
   font-size: 13px;
 }
-.launch-nav a:hover {
+.launch-nav-links a:hover {
   text-decoration: underline;
   text-underline-offset: 5px;
 }

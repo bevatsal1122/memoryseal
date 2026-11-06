@@ -106,7 +106,7 @@ export default function Landing({ busy, error, onConnect }) {
           aria-label="Illustration: agent memories pass through your access rules before sharing"
         >
           <div className="map-caption">
-            <span>THE MEMORY PROTOCOL</span>
+            <span>THE ARCHITECTURE</span>
           </div>
           <div className="map-agent">
             <span className="avatar lavender">⌘</span>
@@ -153,7 +153,7 @@ export default function Landing({ busy, error, onConnect }) {
           <span className="map-sticker" aria-hidden="true">
             YOU SET
             <br />
-            THE RULES ↗
+            THE RULES
           </span>
         </div>
       </div>
@@ -176,10 +176,6 @@ export default function Landing({ busy, error, onConnect }) {
               its place.
             </h2>
           </div>
-          <p>
-            One memory protocol connects agent identities, shared context,
-            permissions, and encrypted vaults across your multi-agent system.
-          </p>
         </div>
         <div className="toolkit-grid">
           {features.map(([number, title, lead, description, icon]) => (
@@ -200,7 +196,6 @@ export default function Landing({ busy, error, onConnect }) {
       <section className="launch-workflow" id="how-it-works">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">FROM SETUP TO SHARED CONTEXT</span>
             <h2>
               Start small.
               <br />
