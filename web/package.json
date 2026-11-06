@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "predev": "npm --prefix ../sdk/typescript run build",
-    "prebuild": "npm --prefix ../sdk/typescript run build"
+    "prebuild": "npm --prefix ../sdk/typescript run build",
+    "postinstall": "npm --prefix ../sdk/typescript ci --include=dev && npm --prefix ../integrations/ens ci --include=dev"
   },
   "dependencies": {
     "next": "^15.5.0",

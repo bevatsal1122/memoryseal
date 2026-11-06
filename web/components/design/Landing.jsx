@@ -85,15 +85,15 @@ export default function Landing({ busy, error, onConnect }) {
       )}
       <div id="landing-content" className="launch-hero">
         <div className="launch-copy">
-          <span className="label-stamp">AGENT MEMORY, WITH BOUNDARIES</span>
+          <span className="label-stamp">BUILT FOR MULTI-AGENT SYSTEMS</span>
           <h1>
-            Shared memory.
+            The memory protocol
             <br />
-            <span className="highlight">Your rules.</span>
+            <span className="highlight">for multi-agent systems.</span>
           </h1>
           <p>
-            A home for your agents’ context, permissions, and proof. Let them
-            work together while you stay in control.
+            Share context across agents through one memory protocol, with scoped
+            permissions, provenance, and control that stays with you.
           </p>
           <div className="launch-actions">
             <button
@@ -119,7 +119,7 @@ export default function Landing({ busy, error, onConnect }) {
           aria-label="Illustration: agent memories pass through your access rules before sharing"
         >
           <div className="map-caption">
-            <span>THE MEMORY CONTROL PLANE</span>
+            <span>THE MEMORY PROTOCOL</span>
             <span aria-hidden="true">✳</span>
           </div>
           <div className="map-agent">
@@ -182,7 +182,7 @@ export default function Landing({ busy, error, onConnect }) {
       <section className="launch-section" id="features">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">ONE WORKSPACE. CLEAR BOUNDARIES.</span>
+            <span className="eyebrow">ONE MEMORY PROTOCOL. CLEAR BOUNDARIES.</span>
             <h2>
               Everything has
               <br />
@@ -190,8 +190,8 @@ export default function Landing({ busy, error, onConnect }) {
             </h2>
           </div>
           <p>
-            From an agent’s first memory to a team’s shared vault. Connected
-            tools, without mixing up access, trust, and ownership.
+            One memory protocol connects agent identities, shared context,
+            permissions, and encrypted vaults across your multi-agent system.
           </p>
         </div>
         <div className="toolkit-grid">
@@ -255,8 +255,8 @@ export default function Landing({ busy, error, onConnect }) {
       <section className="launch-cta">
         <span aria-hidden="true">✳</span>
         <div>
-          <h2>Give context a home.</h2>
-          <p>Build your workspace, one permission at a time.</p>
+          <h2>One protocol. Shared context.</h2>
+          <p>Bring your multi-agent system onto a shared memory protocol.</p>
         </div>
         <button className="neo-button" disabled={busy} onClick={onConnect}>
           {busy ? "Connecting…" : "Let’s get started"}
@@ -265,7 +265,7 @@ export default function Landing({ busy, error, onConnect }) {
       </section>
       <footer className="launch-footer">
         <Brand />
-        <p>Memory is evidence. Policy is authority.</p>
+        <p>The memory protocol for multi-agent systems.</p>
         <a href="#landing-content">Back to top ↑</a>
       </footer>
     </div>

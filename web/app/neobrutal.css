@@ -1535,3 +1535,13 @@ a {
 .recovery-page .connection-note {
   font-size: 12px;
 }
+
+/* Protocol positioning needs a longer headline at every breakpoint. */
+.launch-copy h1 {
+  font-size: clamp(42px, 4.5vw, 66px);
+  line-height: 1.08;
+}
+.highlight {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}

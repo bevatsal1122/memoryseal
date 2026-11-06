@@ -2821,7 +2821,7 @@ function DashboardSession({ signal }) {
             </div>
             <footer className="workspace-footer">
               MemorySeal · Development preview{" "}
-              <span>Memory is evidence. Policy is authority.</span>
+              <span>Memory protocol for multi-agent systems.</span>
             </footer>
           </div>
         </>

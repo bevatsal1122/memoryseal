@@ -1,5 +1,7 @@
 # MemorySeal frontend
 
+Product positioning: **MemorySeal is the memory protocol for multi-agent systems.** Use this wording in the main headline, supporting marketing copy, footer and page metadata. Keep functional labels such as workspace, vault and permissions specific to their tasks.
+
 The frontend uses a neobrutalist visual system: warm paper backgrounds, near-black borders, hard shadows, lime actions, lavender context panels and peach review states. It retains the development-preview label and does not imply that incomplete provider verification is solved.
 
 ## Screen structure
@@ -55,3 +57,17 @@ No external font request is required. The system font stack keeps the initial re
 - The isolated SDK test runner now waits for a successful health check or fails with the temporary server log, instead of starting tests after an exhausted readiness loop.
 - Branded 404 recovery was rendered and inspected; its home link points to `/`. A simulated rejected wallet connection showed retry guidance and re-enabled the connection button at 320px without page overflow.
 - The temporary preview server was stopped after verification. No additional frontend process is required; run `npm run dev --prefix web` when ready.
+
+## Clean deployment installs
+
+The frontend imports sibling packages from `sdk/typescript` and `integrations/ens`. Installing only `web` previously left the SDK without `tsc` and the ENS modules without `viem`. The frontend's `postinstall` now runs lockfile-based installs in both packages, explicitly including the SDK's development compiler. `prebuild` then compiles the SDK before Next.js builds the frontend.
+
+Keep the repository's sibling directories available to the deployment build. From a clean checkout, the frontend install/build sequence is:
+
+```sh
+cd web
+npm ci
+npm run build
+```
+
+Do not disable install lifecycle scripts: they prepare these shared dependencies. The npm `cache-dir` warning in the reported deployment log was not the failing command; the missing SDK compiler was.

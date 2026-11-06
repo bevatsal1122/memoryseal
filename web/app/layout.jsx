@@ -2,9 +2,9 @@ import "./style.css";
 import "./neobrutal.css";
 
 export const metadata = {
-  title: "MemorySeal — Shared memory. Your rules.",
+  title: "MemorySeal — Memory protocol for multi-agent systems",
   description:
-    "Manage agent memories, scoped permissions, team access and client-encrypted vaults in one connected workspace.",
+    "The memory protocol for multi-agent systems. Share agent context with scoped permissions, provenance, team access and client-encrypted vaults.",
 };
 export const viewport = { themeColor: "#f6f4eb" };
 

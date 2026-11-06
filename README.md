@@ -1,6 +1,6 @@
 # MemorySeal
 
-MemorySeal is an authorization boundary for shared AI-agent memory. A memory is evidence, never a permission grant.
+MemorySeal is a memory protocol for multi-agent systems, with explicit authorization boundaries for shared agent memory. A memory is evidence, never a permission grant.
 
 ## Current state
 
