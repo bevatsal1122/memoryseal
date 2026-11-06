@@ -77,3 +77,30 @@ test("wallet grants and revokes the real registry on a local chain", async () =>
     await assert.rejects(setOnchainLimit(wallet, { ...args, chainId: "1" }), /network/);
   } finally { await wallet.disconnect(); }
 });
+
+test("same addresses on two chains have independent enforced policies", async () => {
+  const providers = [31337,31338].map(chainId=>ganache.provider({chain:{chainId},wallet:{seed:"memoryseal-two-chains"},logging:{quiet:true}}));
+  try {
+    const deployments=[];
+    for(const [index,wallet] of providers.entries()){
+      const provider=new BrowserProvider(wallet),owner=await provider.getSigner(0),agent=await provider.getSigner(1),recipient=await provider.getSigner(2);
+      const load=async name=>JSON.parse(await readFile(new URL(`../../contracts/artifacts/${name}.json`,import.meta.url)));
+      const deploy=async(name,...args)=>{const a=await load(name);const c=await new ContractFactory(a.abi,a.bytecode,owner).deploy(...args);await c.waitForDeployment();return c;};
+      const registry=await deploy('MemoryPolicyRegistry'),executor=await deploy('ProtectedTransfer',await registry.getAddress()),token=await deploy('TestToken');
+      const args={registry:await registry.getAddress(),executor:await executor.getAddress(),chainId:String(31337+index),owner:owner.address,agent:agent.address,token:await token.getAddress(),recipient:recipient.address,amount:'50'};
+      args.observeDeployment=async()=>({chain_id:Number(args.chainId),registry:args.registry,executor:args.executor,matches:true,registry_code_matches_local:true,executor_code_matches_local:true});
+      await setOnchainLimit(wallet,{...args,amount:index?'10':'100'});
+      await approveTokenAllowance(wallet,{...args,amount:'100'});
+      args.policyVersion=await onchainVersion(wallet,args.registry,args.chainId,args.owner);
+      const signer={request:q=>q.method==='eth_accounts'?Promise.resolve([agent.address]):wallet.request(q)};
+      deployments.push({args,signer,token});
+    }
+    assert.equal(deployments[0].args.executor,deployments[1].args.executor);
+    const [a,b]=deployments;
+    await assert.rejects(executeProtectedTransfer(b.signer,a.args),/network/);
+    await assert.rejects(executeProtectedTransfer(b.signer,b.args));
+    await executeProtectedTransfer(a.signer,a.args);
+    assert.equal(await a.token.balanceOf(a.args.recipient),50n);
+    assert.equal(await b.token.balanceOf(b.args.recipient),0n);
+  } finally {await Promise.all(providers.map(p=>p.disconnect()));}
+});

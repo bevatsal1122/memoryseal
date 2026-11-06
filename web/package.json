@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "predev": "npm --prefix ../sdk/typescript run build",
+    "prebuild": "npm --prefix ../sdk/typescript run build"
   },
   "dependencies": {
     "next": "^15.5.0",

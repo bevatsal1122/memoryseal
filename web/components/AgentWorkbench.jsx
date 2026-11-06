@@ -26,6 +26,7 @@ export default function AgentWorkbench({ account, request, signal }) {
   const [asset, setAsset] = useState("");
   const [amount, setAmount] = useState("");
   const [simulation, setSimulation] = useState(null);
+  const [networks, setNetworks] = useState([]);
   const [chain, setChain] = useState({
     registry: "",
     executor: "",
@@ -96,7 +97,12 @@ export default function AgentWorkbench({ account, request, signal }) {
     owner: selected.owner_address,
     agent: account,
     observeDeployment: async () =>
-      (await call("GET", "/onchain/observe-deployment")).observation,
+      (
+        await call(
+          "GET",
+          `/onchain/observe-deployment?chain_id=${chain.chainId}`,
+        )
+      ).observation,
   });
   return (
     <section className="agent-workbench">
@@ -419,6 +425,7 @@ export default function AgentWorkbench({ account, request, signal }) {
               onClick={() =>
                 run(async () => {
                   const r = await call("GET", "/integrations/readiness");
+                  setNetworks((await call("GET", "/chains")).chains);
                   setChain((p) => ({
                     ...p,
                     registry: r.onchain_registry || "",
@@ -430,6 +437,33 @@ export default function AgentWorkbench({ account, request, signal }) {
             >
               Load configured contracts
             </button>
+            <label>
+              Configured chain
+              <select
+                value={chain.chainId}
+                disabled={busy || !!chainResult?.transactionHash}
+                onChange={(e) => {
+                  const c = networks.find(
+                    (n) => String(n.chain_id) === e.target.value,
+                  );
+                  if (c)
+                    setChain((p) => ({
+                      ...p,
+                      chainId: String(c.chain_id),
+                      registry: c.registry,
+                      executor: c.executor,
+                      policyVersion: "",
+                    }));
+                }}
+              >
+                <option value="">Choose chain</option>
+                {networks.map((n) => (
+                  <option key={n.chain_id} value={n.chain_id}>
+                    {n.name} ({n.chain_id})
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="workbench-grid">
               {[
                 ["registry", "Registry"],
