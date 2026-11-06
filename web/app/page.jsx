@@ -16,7 +16,7 @@ import {
   loadResolverRecovery,
   saveResolverRecovery,
 } from "../lib/resolver-recovery.mjs";
-import { clearBrowserSessions } from "../lib/browser-session.mjs";
+import { clearBrowserSessions, hasBrowserSession } from "../lib/browser-session.mjs";
 import { gatewayOrigin, signedRequest } from "../lib/gateway.mjs";
 import { memorySearchPath } from "../lib/memory-search.mjs";
 import { capabilityActive, expiryValues } from "../lib/expiry.mjs";
@@ -111,7 +111,7 @@ export default function Dashboard() {
 }
 
 function DashboardSession({ signal }) {
-  const request = (account, method, path, payload) =>
+  const request = (account, method, path, payload, allowLogin = true) =>
     signedRequest({
       account,
       method,
@@ -121,6 +121,7 @@ function DashboardSession({ signal }) {
       audience,
       wallet: window.ethereum,
       useSession: true,
+      allowLogin,
       signal,
     });
   const searchSequence = useRef(0);
@@ -259,14 +260,14 @@ function DashboardSession({ signal }) {
       setBusy(false);
     }
   }
-  async function refresh(owner) {
+  async function refresh(owner, allowLogin = true) {
     // Read requests share the browser login session.
     const [agents, capabilities, memories, events, summary] = await Promise.all([
-      request(owner, "GET", "/agents"),
-      request(owner, "GET", "/capabilities"),
-      request(owner, "GET", "/memories"),
-      request(owner, "GET", "/events"),
-      request(owner, "GET", "/workspace-summary"),
+      request(owner, "GET", "/agents", undefined, allowLogin),
+      request(owner, "GET", "/capabilities", undefined, allowLogin),
+      request(owner, "GET", "/memories", undefined, allowLogin),
+      request(owner, "GET", "/events", undefined, allowLogin),
+      request(owner, "GET", "/workspace-summary", undefined, allowLogin),
     ]);
     setData({
       summary,
@@ -316,6 +317,23 @@ function DashboardSession({ signal }) {
       if (!chainId) setChainId(String(ready.onchain_chain_id || 11155111));
     });
   }, [account, view, !!data]);
+  useEffect(() => {
+    let cancelled = false;
+    const resume = async () => {
+      const wallet = window.ethereum;
+      if (!wallet) return;
+      const origin = gatewayOrigin(api);
+      // eth_accounts checks existing permission without opening a wallet prompt.
+      const accounts = await wallet.request({method: "eth_accounts"});
+      if (cancelled || signal.aborted || !accounts[0]) return;
+      if (!hasBrowserSession({api: origin, audience, account: accounts[0]})) return;
+      await refresh(accounts[0], false);
+      if (!cancelled && !signal.aborted) setAccount(accounts[0]);
+    };
+    resume().catch(() => { /* Expired/revoked/offline: leave the normal connect action available. */ });
+    return () => { cancelled = true; };
+  }, [signal]);
+
   async function connect() {
     gatewayOrigin(api);
     if (!window.ethereum) throw new Error("Install an EVM wallet to connect.");

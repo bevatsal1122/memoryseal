@@ -1,4 +1,28 @@
-// Tokens live only in memory. Reloading the page requires a fresh login.
+// Read-only bearer sessions survive refresh in this tab; private keys never enter storage.
+const STORAGE_KEY = "memoryseal.browser-sessions.v1";
+function storedSessions() {
+  try {
+    const value = JSON.parse(globalThis.sessionStorage?.getItem(STORAGE_KEY) || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch { return {}; }
+}
+function persist(key, entry) {
+  try {
+    const entries = storedSessions();
+    if (entry) entries[key] = {token: entry.token, expires_at: entry.expires_at};
+    else delete entries[key];
+    globalThis.sessionStorage?.setItem(STORAGE_KEY, JSON.stringify(entries));
+  } catch { /* Storage blocked: keep the in-memory session working. */ }
+}
+function usable(entry) {
+  return entry && typeof entry.token === "string" && entry.token.length > 0 &&
+    Number.isFinite(entry.expires_at) && entry.expires_at * 1000 > Date.now() + 5000;
+}
+const sessionKey = (api, audience, account) => `${api}|${audience}|${account.toLowerCase()}`;
+export function hasBrowserSession({api, audience, account}) {
+  const key = sessionKey(api, audience, account);
+  return !!(usable(sessions.get(key)) || usable(storedSessions()[key]));
+}
 const sessions = new Map();
 let generation = 0;
 const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
@@ -12,6 +36,7 @@ export function clearBrowserSessions() {
     }).catch(() => {});
   }
   sessions.clear();
+  try { globalThis.sessionStorage?.removeItem(STORAGE_KEY); } catch { /* unavailable */ }
 }
 
 async function json(response) {
@@ -20,9 +45,9 @@ async function json(response) {
   return body;
 }
 
-export async function browserRead({ account, path, api, audience, wallet, signal, method = "GET", payload }) {
+export async function browserRead({ account, path, api, audience, wallet, signal, method = "GET", payload, allowLogin = true }) {
   if (!path.startsWith("/") || path.startsWith("//") || path.includes("#")) throw new Error("Invalid request path");
-  const key = `${api}|${audience}|${account.toLowerCase()}`;
+  const key = sessionKey(api, audience, account);
   const currentGeneration = generation;
   const check = () => {
     signal?.throwIfAborted();
@@ -52,7 +77,14 @@ export async function browserRead({ account, path, api, audience, wallet, signal
   for (let attempt = 0; attempt < 2; attempt++) {
     check();
     let entry = sessions.get(key);
-    if (!entry || (entry.expires_at && entry.expires_at * 1000 <= Date.now() + 5000)) {
+    if (!entry) {
+      const saved = storedSessions()[key];
+      if (usable(saved)) { entry = {...saved, api}; sessions.set(key, entry); }
+      else persist(key, null);
+    }
+    if (!entry || (!entry.pending && !usable(entry))) {
+      persist(key, null);
+      if (!allowLogin) throw new Error("Session expired. Please reconnect.");
       entry = { pending: login() };
       sessions.set(key, entry);
     }
@@ -62,6 +94,7 @@ export async function browserRead({ account, path, api, audience, wallet, signal
         entry = await pending.pending;
         check();
         sessions.set(key, entry);
+        persist(key, entry);
       } catch (error) {
         if (sessions.get(key) === pending) sessions.delete(key);
         throw error;
@@ -72,9 +105,10 @@ export async function browserRead({ account, path, api, audience, wallet, signal
       headers: { Authorization: `Bearer ${entry.token}`, ...(payload === undefined ? {} : { "Content-Type": "application/json" }) },
     });
     check();
-    if (response.status === 401 && attempt === 0) {
+    if (response.status === 401) {
+      persist(key, null);
       if (sessions.get(key) === entry) sessions.delete(key);
-      continue;
+      if (allowLogin && attempt === 0) continue;
     }
     return json(response);
   }

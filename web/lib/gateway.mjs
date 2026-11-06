@@ -18,10 +18,10 @@ export function gatewayOrigin(api, page = globalThis.location) {
   return url.origin;
 }
 
-export async function signedRequest({ account, method, path, payload, api, audience, wallet, signal, useSession = false }) {
+export async function signedRequest({ account, method, path, payload, api, audience, wallet, signal, useSession = false, allowLogin = true }) {
   signal?.throwIfAborted();
   const origin = gatewayOrigin(api);
-  if (useSession && (method === "GET" || (method === "POST" && path === "/memory/read"))) return browserRead({ account, path, api: origin, audience, wallet, signal, method, payload });
+  if (useSession && (method === "GET" || (method === "POST" && path === "/memory/read"))) return browserRead({ account, path, api: origin, audience, wallet, signal, method, payload, allowLogin });
   const body = payload === undefined ? "" : JSON.stringify(payload);
   const digest = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body))));
   const timestamp = Math.floor(Date.now() / 1000);

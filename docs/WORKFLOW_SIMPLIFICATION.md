@@ -4,7 +4,7 @@ Implemented November 7, 2026. These changes preserve owner-signed authority and 
 
 ## Everyday flow
 
-1. Connect a wallet and sign in once. The short-lived browser session permits workspace reads and the exact agent memory-read endpoint. Mutations still require a signature.
+1. Connect a wallet and sign in once. The 30-minute session survives page refreshes in the same tab through sessionStorage, without extending its expiry. The app restores it only for the wallet’s currently connected account, gateway and audience. Sign out, account changes and chain changes clear it. Expired or revoked sessions require reconnecting. Storage-blocked browsers fall back to in-memory sessions. The short-lived browser session permits workspace reads and the exact agent memory-read endpoint. Mutations still require a signature.
 2. In **Agents**, enter a friendly name, the agent's public wallet address, and a collection. Select read/write access and an acceptance policy. **Add agent and permissions** signs one atomic request. Registration, permissions, and acceptance policy succeed together or roll back together. Retries retain the request ID and cannot create duplicate grants.
 3. Use the agent wallet in **Playground**. Its registrations and collections load automatically. Enter content and choose **Save memory**, then confirm one wallet signature. Success resets the editor. An uncertain response retains the original request for retry.
 4. **Read memories** uses the existing login session; it does not request another wallet signature. Current permissions are checked server-side, including revocation.
