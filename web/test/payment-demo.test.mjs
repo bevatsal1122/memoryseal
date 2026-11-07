@@ -27,3 +27,21 @@ test('gateway failure stops the run without manufacturing a result', async () =>
  const c=clients(); c.browser.writeMemory=async()=>{throw new Error('Gateway unavailable');};
  await assert.rejects(runPaymentDemo({mode:'protected',invoice,clients:c,emit:()=>{}}),/Gateway unavailable/);
 });
+test('live snapshots show draft, sharing, and the finance overwrite in order', async () => {
+ const snapshots=[];
+ await runPaymentDemo({mode:'baseline',invoice,emit:()=>{},onMemory:patch=>snapshots.push(patch)});
+ assert.equal(snapshots[0].effectiveLimit,5000);
+ assert.equal(snapshots[1].draft,invoice.instruction);
+ assert.equal(snapshots[2].shared,invoice.instruction);
+ assert.deepEqual(snapshots[3].finance,[invoice.instruction]);
+ assert.equal(snapshots[3].effectiveLimit,50000);
+});
+test('protected live memory uses the actual read response and does not overwrite policy', async () => {
+ const memory={};
+ await runPaymentDemo({mode:'protected',invoice,clients:clients(),emit:()=>{},onMemory:patch=>Object.assign(memory,patch)});
+ assert.equal(memory.writeStatus,'quarantined');
+ assert.equal(memory.draft,invoice.instruction);
+ assert.deepEqual(memory.finance,[]);
+ assert.equal(memory.shared,null);
+ assert.equal(memory.effectiveLimit,5000);
+});
