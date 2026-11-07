@@ -1812,9 +1812,13 @@ textarea:focus {
 .workspace .proof-history > summary, .workspace .proof-raw > summary { padding: 15px 0; font-size: 13px; }
 .proof-count { font: 11px monospace; margin-left: 8px; }
 .proof-history-body { padding: 0 0 8px; }
-.proof-timeline-event { border-left: 2px solid var(--ink); margin: 20px 0 0 5px; padding: 0 0 4px 18px; }
+.proof-timeline-event { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 24px; border: 1px solid #c5c7ba; border-left: 3px solid var(--ink); margin: 14px 0 0; padding: 16px; background: var(--paper, #fffef8); }
+.proof-event-info { flex: 1 1 260px; min-width: 0; }
+.workspace .proof-event-actions { margin: 0 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.workspace .proof-history-actions { justify-content: flex-end; gap: 10px; }
+.workspace .proof-timeline-event > p { flex-basis: 100%; margin: 0; }
 .proof-event-title { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; text-transform: capitalize; }
-.proof-timeline-event code { display: block; font-size: 11px; color: var(--muted); margin: 8px 0 12px; }
+.proof-timeline-event code { display: block; font-size: 11px; color: var(--muted); margin: 8px 0 0; overflow-wrap: anywhere; }
 .workspace .memory-proof .proof-raw pre { padding: 16px; background: #f0eee5; border: 1px solid #c5c7ba; line-height: 1.7; }
 .workspace .proof-raw p, .workspace .proof-footnote { font-size: 11px; color: var(--muted); line-height: 1.7; }
 .workspace .proof-footnote { margin: 16px 0 0; }
@@ -2260,3 +2264,13 @@ textarea:focus {
 .saved-memory-proof > button { width: auto; max-width: 100%; padding: 12px 16px; font-size: 14px; border: 2px solid #23261f; background: #c9f46c; box-shadow: 3px 3px 0 #23261f; cursor: pointer; }
 .saved-memory-proof > button:disabled { opacity: .55; cursor: default; }
 .saved-memory-reopen { margin-top: 16px; }
+
+.memory-reader-modal { width: min(820px, calc(100vw - 32px)); }
+.memory-reader-modal h2 { overflow-wrap: anywhere; text-transform: none; }
+.memory-reader-label { margin: 0 0 12px; font-size: 13px; color: #62665b; }
+.memory-plaintext { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; font-size: 17px; padding: 20px; border: 1px solid #c5c7ba; background: white; margin-bottom: 20px; }
+.memory-reader-modal .saved-memory-body > p, .memory-reader-modal small { font-size: 13px; }
+.memory-reader-modal .detail { padding: 18px; margin: 18px 0; background: #e5def2; border: 1px solid #23261f; }
+.memory-reader-modal button:not(.saved-memory-close) { padding: 10px 18px; border: 2px solid #23261f; background: #c9f46c; color: #23261f; box-shadow: 3px 3px 0 #23261f; font-size: 14px; font-weight: 700; cursor: pointer; }
+.memory-reader-modal button:disabled { opacity: .5; cursor: default; }
+.workspace .memory-record-heading h3 { text-transform: none; overflow-wrap: anywhere; }

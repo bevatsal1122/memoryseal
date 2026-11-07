@@ -3,6 +3,7 @@
 import ConnectionStatus, { ConnectionDiagnostics } from "../components/ConnectionStatus";
 import CollectionInput from "../components/CollectionInput";
 import ActionNotice from "../components/ActionNotice";
+import MemoryContentModal from "../components/MemoryContentModal";
 
 import { useEffect, useRef, useState } from "react";
 import { useWorkspaceNavigation } from "../lib/workspace-navigation";
@@ -35,8 +36,6 @@ import {
   attachDedicatedResolver,
   verifyDedicatedAttachment,
   inspectSubnameRegistry,
-  registerAgentSubname,
-  verifyAgentSubname,
   writeAgentName,
   verifyAgentName,
 } from "../lib/ens.mjs";
@@ -115,6 +114,12 @@ function DashboardSession({ signal }) {
     requestId: "",
   });
   const [detail, setDetail] = useState(null);
+  const [memoryTitles, setMemoryTitles] = useState({});
+  const memoryTitle = m => memoryTitles[`${account}:${m.id}`] || `${m.namespace} · ${(m.category || "memory").replaceAll("_", " ")} #${m.id.slice(0, 8)}`;
+  function rememberTitle(content) {
+    const text = content.content?.replace(/\s+/g, " ").trim();
+    if (text) setMemoryTitles(previous => ({...previous, [`${account}:${content.id}`]: text.length > 80 ? text.slice(0, 77) + "…" : text}));
+  }
   const [commitmentCheck, setCommitmentCheck] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -128,9 +133,6 @@ function DashboardSession({ signal }) {
   const [ensWrite, setEnsWrite] = useState(null);
   const [ensCheck, setEnsCheck] = useState(null);
   const [ensRegistryCheck, setEnsRegistryCheck] = useState(null);
-  const [ensExpiry, setEnsExpiry] = useState("");
-  const [ensRegistration, setEnsRegistration] = useState(null);
-  const [ensRegistrationCheck, setEnsRegistrationCheck] = useState(null);
   const [ensResolver, setEnsResolver] = useState(null);
   const [ensResolverCheck, setEnsResolverCheck] = useState(null);
   const [ensAttachment, setEnsAttachment] = useState(null);
@@ -527,7 +529,7 @@ function DashboardSession({ signal }) {
             <div className="stats">
               <div>
                 <small>AGENTS</small>
-                <strong>{data.agents.length}</strong>
+                <strong>{data.agents.filter(a => !a.revoked).length}</strong>
               </div>
               <div>
                 <small>ACTIVE CAPABILITIES</small>
@@ -561,10 +563,10 @@ function DashboardSession({ signal }) {
                     <h2>Agents</h2>
                   </div>
                 </div>
-                {data.agents.length === 0 ? (
-                  <p className="muted">No agents registered yet.</p>
+                {!data.agents.some(a => !a.revoked) ? (
+                  <p className="muted">No active agents.</p>
                 ) : (
-                  data.agents.map((a) => (
+                  data.agents.filter(a => !a.revoked).map((a) => (
                     <AgentCard key={a.id} agent={a} capabilities={data.capabilities}
                       observation={ensObservations[a.id]} busy={busy}
                       onCheckEns={() => {
@@ -677,10 +679,10 @@ function DashboardSession({ signal }) {
                 <article className="permission-card permission-current">
                   <header className="permission-card-header"><span>03</span><h2>Current permissions</h2><span className="permission-total">{data.capabilities.filter(c => capabilityActive(c) && data.agents.some(a => a.id === c.agent_id && !a.revoked)).length} active</span></header>
                   <div className="permission-current-body">
-                  {data.capabilities.length === 0 && <div className="permission-empty"><span aria-hidden="true">⊞</span><p>No permissions yet.</p></div>}
-                  {data.agents.filter(a => data.capabilities.some(c => c.agent_id === a.id)).map(a => <details key={a.id} className="permission-group">
+                  {!data.capabilities.some(c => !c.revoked && data.agents.some(a => a.id === c.agent_id)) && <div className="permission-empty"><span aria-hidden="true">⊞</span><p>No permissions yet.</p></div>}
+                  {data.agents.filter(a => data.capabilities.some(c => c.agent_id === a.id && !c.revoked)).map(a => <details key={a.id} className="permission-group">
                     <summary><span>{a.label || a.ens_name || a.signing_address}</span><span className="permission-group-count">{a.revoked ? "Agent revoked" : `${data.capabilities.filter(c => c.agent_id === a.id && capabilityActive(c)).length} active`}</span></summary>
-                    <div className="permission-grant-list">{data.capabilities.filter(c => c.agent_id === a.id).map(c => <div className="permission-grant" key={c.id}>
+                    <div className="permission-grant-list">{data.capabilities.filter(c => c.agent_id === a.id && !c.revoked).map(c => <div className="permission-grant" key={c.id}>
                       <span className="permission-action">{c.operation}</span>
                       <div className="permission-grant-info"><code>{c.resource}</code><small>{c.max_amount ? `Limit: ${c.max_amount} base units · ` : ""}{c.expires_at ? `Expires ${new Date(/[Zz]|[+-]\d{2}:\d{2}$/.test(c.expires_at) ? c.expires_at : `${c.expires_at}Z`).toLocaleString()}` : "No expiry"}</small></div>
                       {capabilityActive(c) ? <button className="permission-revoke" disabled={busy} onClick={() => run(async () => {await request(account,"POST",`/capabilities/${c.id}/revoke`,{}); await refresh(account);})}>Revoke</button> : <span className="pill">{c.revoked ? "Revoked" : "Expired"}</span>}
@@ -773,8 +775,8 @@ function DashboardSession({ signal }) {
                     setCommitmentCheck(null);
                     const content = await request(account, "GET", `/memories/${m.id}`);
                     setDetail(content);
+                    rememberTitle(content);
                     setCommitmentCheck(await verifyMemoryCommitment(content.content, content.commitment_salt, content.commitment));
-                    requestAnimationFrame(() => document.querySelector(".memory-content-detail")?.scrollIntoView({behavior: "smooth", block: "center"}));
                   })}
                   onParent={id => run(() => searchMemories({memoryId: id}))}
                 />
@@ -786,7 +788,7 @@ function DashboardSession({ signal }) {
                       <div className="memory-record-main">
                         <div className="memory-record-heading">
                         <span className="memory-collection">{m.namespace}</span>
-                        <h3>{m.category.replaceAll("_", " ")}</h3>
+                        <h3>{memoryTitle(m)}</h3>
                         <small>{data.agents.find(a => a.id === m.agent_id)?.label || data.agents.find(a => a.id === m.agent_id)?.ens_name || "Agent " + m.agent_id.slice(0, 8)} · {new Date(/[Zz]|[+-]\d{2}:\d{2}$/.test(m.created_at) ? m.created_at : m.created_at + "Z").toLocaleString()}</small>
                         </div>
                         <MemoryEvidence
@@ -908,11 +910,12 @@ function DashboardSession({ signal }) {
                               setCommitmentCheck(null);
                               const content = await request(account, "GET", `/memories/${m.id}`);
                               setDetail(content);
+                    rememberTitle(content);
                               setCommitmentCheck(await verifyMemoryCommitment(content.content, content.commitment_salt, content.commitment));
                             })
                           }
                         >
-                          {m.status === "quarantined" ? "Review memory" : "View memory"}
+                          {m.status === "quarantined" ? "Read & review" : "Read memory"}
                         </button>
                         {m.status === "accepted" && (
                           <button
@@ -981,9 +984,9 @@ function DashboardSession({ signal }) {
                   </div>
                 )}
                 {detail && (
-                  <div className="detail memory-content-detail">
-                    <b>Memory content</b>
-                    <p>{detail.content}</p>
+                  <MemoryContentModal title={memoryTitle(detail)} namespace={detail.namespace} onClose={() => {setDetail(null); setCommitmentCheck(null);}}>
+                    <h3 className="memory-reader-label">Memory content</h3>
+                    <div className="memory-plaintext">{detail.content}</div>
                     <small>
                       Source: {detail.source_reference || "Not supplied"} ·{" "}
                       {detail.trust_class}
@@ -1031,7 +1034,7 @@ function DashboardSession({ signal }) {
                     >
                       Close
                     </button>
-                  </div>
+                  </MemoryContentModal>
                 )}
               </section>
               <section className="panel-ens">
@@ -1068,7 +1071,6 @@ function DashboardSession({ signal }) {
                     onChange={(e) => setEnsNetwork(e.target.value)}
                   >
                     <option value="11155111">Sepolia testnet</option>
-                    <option value="1">Ethereum mainnet</option>
                   </select>
                   <label htmlFor="ens-parent">Parent name</label>
                   <input
@@ -1121,81 +1123,6 @@ function DashboardSession({ signal }) {
                     </button>
                     <button disabled={busy}>Sign ENS record transaction</button>
                   </div>
-                  <label htmlFor="ens-expiry">
-                    Owned subname expiry (local time, required)
-                  </label>
-                  <input
-                    id="ens-expiry"
-                    type="datetime-local"
-                    value={ensExpiry}
-                    onChange={(e) => setEnsExpiry(e.target.value)}
-                  />
-                  <p className="muted">
-                    Requires an unused name and the parent’s registrar role. The subname inherits its resolver; parent administrators may retain control.
-                  </p>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
-                      run(async () => {
-                        if (!ensExpiry)
-                          throw new Error("Choose a future subname expiry.");
-                        const result = await registerAgentSubname(
-                          window.ethereum,
-                          {
-                            owner: account,
-                            chainId: ensNetwork,
-                            parentName: ensParent,
-                            label: ensLabel,
-                            expiry: expiryValues(ensExpiry).seconds,
-                          },
-                        );
-                        setEnsRegistration({
-                          ...result,
-                          parentName: ensParent,
-                          label: ensLabel,
-                          chainId: ensNetwork,
-                        });
-                        setEnsRegistrationCheck(null);
-                      })
-                    }
-                  >
-                    Register owned subname on Sepolia
-                  </button>
-                  {ensRegistration && (
-                    <div className="detail">
-                      <b>{ensRegistration.name}</b>
-                      <p className="muted">
-                        Registration transaction:{" "}
-                        {ensRegistration.transactionHash}
-                      </p>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() =>
-                          run(async () =>
-                            setEnsRegistrationCheck(
-                              await verifyAgentSubname(
-                                window.ethereum,
-                                ensRegistration,
-                              ),
-                            ),
-                          )
-                        }
-                      >
-                        Verify registration
-                      </button>
-                      {ensRegistrationCheck && (
-                        <p>
-                          {ensRegistrationCheck.matches
-                            ? "Owner and registry matched"
-                            : "Owner or registry did not match"}{" "}
-                          at block {ensRegistrationCheck.blockNumber}. Later
-                          changes or reorganizations remain possible.
-                        </p>
-                      )}
-                    </div>
-                  )}
                   <div className="detail">
                     <b>Dedicated resolver (Sepolia)</b>
                     <p className="muted">

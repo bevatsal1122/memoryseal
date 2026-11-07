@@ -39,13 +39,13 @@ export default function MemoryProof({memory, observation, history, eventObservat
       }}>
         <summary>Record history & recovery <span className="proof-count">{history ? history.events.length : ""}</span></summary>
         <div className="proof-history-body">
-          <div className="inline">{memory.parent_id && <button disabled={busy} onClick={onParent}>Related parent</button>}<button disabled={busy} onClick={onChildren}>Related memories</button><button disabled={busy} onClick={onHistory}>Refresh event details</button></div>
+          <div className="inline proof-history-actions">{memory.parent_id && <button disabled={busy} onClick={onParent}>Related parent</button>}<button disabled={busy} onClick={onChildren}>Related memories</button><button disabled={busy} onClick={onHistory}>Refresh event details</button></div>
           {!history && <p className="muted">{busy ? "Loading record history…" : "History not loaded."}</p>}
           {history?.events.length === 0 && <p className="muted">No events recorded.</p>}
           {history?.events.map(e => <div key={e.event_id} className="proof-timeline-event">
-            <div className="proof-event-title"><strong>{readable(e.event_type)}</strong><span className="proof-state">{proofLabel(e.state)}</span></div>
-            <code>{e.event_id}</code>
-            <div className="inline"><Transaction hash={e.transaction_hash} />
+            <div className="proof-event-info"><div className="proof-event-title"><strong>{readable(e.event_type)}</strong><span className="proof-state">{proofLabel(e.state)}</span></div>
+            <code>{e.event_id}</code></div>
+            <div className="inline proof-event-actions"><Transaction hash={e.transaction_hash} />
               {e.state === "pending" && <button disabled={busy} onClick={() => onPublishEvent(e.event_id)}>Publish now</button>}
               {e.state === "uncertain" && <button disabled={busy} onClick={() => onReconcileEvent(e.event_id)}>Look up existing submission</button>}
               {e.state === "published" && e.event_type !== "memory_created" && <button disabled={busy} onClick={() => onObserveEvent(e.event_id)}>Verify this event</button>}
@@ -55,10 +55,8 @@ export default function MemoryProof({memory, observation, history, eventObservat
         </div>
       </details>
       <details className="proof-raw"><summary>Technical identifiers & raw data</summary>
-        <p>Agent-signed origin acknowledgements are distinct from hardware attestation.</p>
         <pre>{JSON.stringify(raw, null, 2)}</pre>
       </details>
-      <p className="proof-footnote">Public metadata only. Publication does not prove content is true.</p>
     </div>
   </details>;
 }
