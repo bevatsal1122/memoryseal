@@ -1,5 +1,7 @@
 # MemorySeal P0 verification status
 
+> Submission navigation (7 November 2026): see [the current README](../README.md) and [judging guide](SUBMISSION.md). Dated observations below describe the state when recorded and must not be treated as a current deployment health report.
+
 Status: **in progress**. This is a development prototype; local test success is not a live deployment or security audit. The acceptance target is the complete security workflow in the technical specification, including real ENS, Arkiv and 0G integrations and an enforced action.
 
 ## Expanded feature update — 6 November 2026

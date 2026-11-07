@@ -1,5 +1,7 @@
 # MemorySeal and 0G Private Computer: integration and verification
 
+> Submission navigation (7 November 2026): see [the current README](../README.md) and [judging guide](SUBMISSION.md). Dated observations below describe the state when recorded and must not be treated as a current deployment health report.
+
 **Status: in progress.** This document records the implementation and the point-in-time observations made on 6 November 2026. MemorySeal can reach the 0G mainnet router and obtain a structured classification for synthetic data, but the complete private inference path has **not** passed independent end-to-end verification. The gateway keeps unverified inference quarantined. This is a development prototype, not a security audit.
 
 ### Current local routing (6 November 2026)

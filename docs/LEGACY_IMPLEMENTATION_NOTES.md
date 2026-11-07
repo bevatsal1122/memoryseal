@@ -1,0 +1,113 @@
+# Historical implementation notes
+
+Archived on 7 November 2026 from the previous README. These notes mix earlier development stages; they are not a current feature or deployment checklist. Use the root README and SUBMISSION.md for the current presentation. Relative links below originated at repository root.
+
+# MemorySeal
+
+MemorySeal is a memory protocol for multi-agent systems, with explicit authorization boundaries for shared agent memory. A memory is evidence, never a permission grant.
+
+## Current state
+
+See the [local runbook](../docs/LOCAL_RUNBOOK.md) for setup and the [current P0 verification checklist](../docs/P0_STATUS.md) for evidence and outstanding work.
+
+This repository is being built in vertical slices. The first slice is a local, testable gateway and protected action path. ENSv2, Arkiv, 0G, contracts, SDK, and dashboard are tracked in [the build record](../docs/BUILD_RECORD.md); local substitutes must not be presented as those integrations.
+
+For the 0G implementation, observed verification results, diagnostics and outstanding questions, see the [0G integration and verification README](../docs/0G_INTEGRATION_README.md).
+
+## Development setup
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+.venv/bin/python scripts/init_local.py
+.venv/bin/pytest
+```
+
+Run the development gateway with `.venv/bin/uvicorn memoryseal.api:app --reload`. A Python agent can construct `MemorySealClient(base_url, private_key, audience="memoryseal-local")` and use `register_agent`, `grant`, `write_memory`, `read_memory`, and `simulate_transfer`. The owner and each agent use their own signing keys. `simulate_transfer` returns `allowed` for the policy decision and always returns `executed: false`: it does not send a transaction. Existing callers that used `executed` as the policy decision must switch to `allowed`. See [the build record](../docs/BUILD_RECORD.md) for the boundaries and remaining work.
+
+The Python SDK gives memory writes a configurable timeout (`write_timeout`, default 180 seconds) and creates a request ID for each write. On a transport error, HTTP 408, server error, malformed JSON, or a response without the matching request ID, it raises `MemoryWriteOutcomeUnknown` with a `request_id`: retry the exact same write with that ID to retrieve the existing result if it committed. Changed inputs with the same ID are rejected, and the agent must still have current write permission. The SDK does not retry automatically. Concurrent attempts can both invoke external inference before converging on one stored memory, so external work or charges may be duplicated.
+
+The gateway is under construction. It exposes signed local registration, owner-controlled capabilities, encrypted namespace-scoped memory access, and a transfer simulator that checks the current policy. The simulator moves no funds. ENS names submitted during registration are unverified metadata. Set `MEMORYSEAL_ENCRYPTION_KEY` to a base64-encoded 32-byte key to enable local memory operations; the server holds this key. Key distribution, rotation, and client-side encryption are not yet implemented. A protected token-transfer contract exists and has been tested on a local EVM; it has not been verified as a live deployment. Do not use the current code to protect real assets or private memories.
+
+Owners can quarantine an accepted memory from the dashboard or with `quarantine_memory_signed(memory_id, event_id=..., commitment=..., policy_version=...)`. The dashboard uses the signed event format, which binds those fields to the owner request; the legacy `quarantine_memory(memory_id)` creates the older v5 event. Subsequent reads withhold the memory and its descendants; the gateway keeps the creation event and queues a separate public quarantine event. `memory_provenance_events(memory_id)` lists local publication states. Publication requires a configured Arkiv worker and has not been verified live. Quarantine cannot retract content an agent has already received.
+
+The creating agent can call `attest_memory_origin_verified(memory_id, event_id=..., commitment=..., policy_version=..., content=...)` to check its original content against a privately retrieved commitment salt before signing an acknowledgement. The agent must retain write permission. Use a trusted, encrypted gateway connection outside local development and protect the salt: someone with the salt and public commitment can test guesses about the content. The raw `attest_memory_origin` method remains available without that local check, so the public signature alone cannot establish that verification occurred. Neither method proves the source or truth of the content. The local reference demos use the verified helper; ordinary writes do not attest automatically.
+
+Gateway HTTP responses carry `Cache-Control: no-store` to discourage compliant clients and intermediaries from retaining potentially sensitive responses. This does not prevent logging, copying, compromised clients, or a proxy that ignores the header; configure infrastructure accordingly.
+
+New classifier conflict lists retain only capability IDs present in the policy snapshot sent for that inference; other returned strings become an `unresolved` marker and still cause quarantine. This reduces accidental storage of model-echoed text but does not sanitize historical records or every metadata field. New source references are encrypted at rest with the namespace key; legacy source references and other metadata may remain plaintext. Avoid putting secrets in metadata and protect the database and backups.
+
+New memory records encrypt their random commitment salts at rest under the namespace key. Older records remain readable but retain plaintext salts until individually re-encrypted; existing database copies and backups are not changed. A leaked legacy salt and public commitment can allow guesses of predictable memory contents. The isolated snapshot rotation tools can re-encrypt salts during a planned key rotation, but do not perform an online cutover or erase old copies.
+
+Set `MEMORYSEAL_ZERO_G_API_KEY` and `MEMORYSEAL_ZERO_G_MODEL` together to configure private-mode inference. The gateway-connection verifier described below is also required by default before content is sent. Set `MEMORYSEAL_ZERO_G_NETWORK` to `testnet` (the default) or `mainnet`; each network uses its own router and credentials. Memories are quarantined when inference is not configured; configuring inference does not establish independent provider attestation. Results are advisory. The gateway requests router-side TEE verification and records its reported result, but does not independently verify provider attestation. Missing or failed router verification quarantines the memory. Optionally configure `MEMORYSEAL_ZERO_G_PROVIDER_ADDRESS`, `MEMORYSEAL_ZERO_G_TEE_SIGNER`, and `MEMORYSEAL_ZERO_G_SIGNATURE_BASE_URL` together to check the provider signature against a manually pinned signer and compare the signed text with the router response. With these pins configured, the router request selects that provider and disables fallback. Incomplete or invalid pins quarantine the memory without sending its content for inference; a failed signature check also quarantines it. The operator must validate and maintain these pins. Optionally set `MEMORYSEAL_ZERO_G_REGISTRY_RPC_URL` to compare them with the selected 0G network’s observed provider record before sending inference. The RPC is trusted, and a match does not verify TEE attestation, prove finality, or bind the original request. The gateway upgrades supported early SQLite schemas at startup and refuses unknown future versions or legacy encrypted records without nonces. Back up existing data before upgrades.
+
+To enable the owner-signed onchain observation endpoint, configure `MEMORYSEAL_ONCHAIN_RPC_URL`, `MEMORYSEAL_ONCHAIN_CHAIN_ID`, and `MEMORYSEAL_ONCHAIN_EXECUTOR`. The gateway checks the expected agent and a successful transfer event, or matches the calldata and receipt of a reverted call, using that RPC. A reverted receipt does not establish the cause; an observation is not a finality proof. The configured executor and RPC must correspond to the intended deployment.
+
+For optional onchain enforcement of memory reads and writes, set `MEMORYSEAL_REQUIRE_ONCHAIN_MEMORY=true` and configure `MEMORYSEAL_ONCHAIN_REGISTRY` alongside the RPC URL and chain ID. The owner must grant the same operation and exact namespace locally and onchain. Namespace IDs are `keccak256` of the exact UTF-8 namespace. The gateway fails closed on RPC errors and checks again after inference. The RPC is trusted, and a chain update or reorganization can occur between a check and the offchain operation.
+
+To enable owner-requested ENS address observations, configure `MEMORYSEAL_ENS_RPC_URL` and `MEMORYSEAL_ENS_NETWORK` (`sepolia` or `mainnet`), and install the dependencies in `integrations/ens`. The observer disables offchain CCIP callbacks and checks an address at a specific block; a match does not prove parent-name ownership or grant permissions.
+
+The ENS console also has an experimental Sepolia owned-subname registration flow for a never-used label under a canonical, already-attached subregistry. The connected wallet must own the parent and hold the registrar root role. It registers the token to that wallet with renewal, resolver, subregistry, and transfer permissions, a required expiry, and inherited resolver; no agent permissions are granted by the token. The transaction is simulated first, and a separate read checks the transaction and ownership at its inclusion block. Registry root role holders may retain control, and parent/registry state may change before inclusion or afterward. The registry registration and owner roles have also been exercised against official ENSv2 contract artifacts on a local EVM; the complete wallet flow is mocked and no live owned-subname registration or real-wallet verification has been performed.
+
+The ENS resolver-record creation flow checks that the target name is currently unlinked before writing, because existing records may be shared by other names. This check is not atomic with transaction inclusion: another transaction can change links before the write executes. It does not create a subname token or prove parent ownership.
+
+New Arkiv events use `memoryseal.memory-event.v3`, adding the gateway-authenticated agent signing address to v2’s bounded source type. Older v1 and v2 outbox entries remain supported; independent consumers should query the relevant schema versions. Namespace and source-reference strings remain local because they may be sensitive. Source type, owner and agent address are public and linkable metadata. The published address is an assertion by the Arkiv publisher, not independent proof of the agent’s signature.
+
+For Arkiv testnet publication, install the dependencies in `integrations/arkiv`, configure `MEMORYSEAL_ARKIV_PRIVATE_KEY` and optionally `MEMORYSEAL_ARKIV_ACCESS_KEY`, then run `.venv/bin/python -m memoryseal.outbox_worker --memory-id MEMORY_ID` to process that memory’s pending event, or omit the option to process the oldest pending event. The owner memory listing and dashboard expose the event ID. The wallet needs testnet funds. If a worker is interrupted while an event remains `publishing`, first ensure both the worker and its Node child have stopped, then run `.venv/bin/python -m memoryseal.outbox_worker --recover-interrupted EVENT_ID` to mark it `uncertain` without sending anything. An ambiguous result is left `uncertain`; `.venv/bin/python -m memoryseal.outbox_worker --reconcile EVENT_ID` performs a read-only comparison and never automatically republishes. Owners can use the dashboard or SDK `observe_provenance(memory_id)` to query the configured publisher’s current Arkiv record and compare its fields and entity key with the local outbox. The observation does not update the outbox. New outbox entries record the public publisher address at claim time, so observation and reconciliation work without the private key even after key rotation. Older entries without a recorded creator require `MEMORYSEAL_ARKIV_CREATOR_ADDRESS` to be set explicitly to their original publisher. A configured creator must match the publisher key for new writes; a pending event already bound to a different creator is not republished. The optional access key selects the Arkiv endpoint. Missing records can reflect expiry or indexing delays; a match is not proof of truth or permanence. A synthetic gateway creation event has been published and independently queried on Rabdi; a later signed acknowledgement remains uncertain. See [P0 status](../docs/P0_STATUS.md) for the current limits.
+
+## Local agent demo
+
+Start the gateway with a configured encryption key, then run `.venv/bin/python -m memoryseal.demo.run`. The script generates temporary owner and agent keys, grants local capabilities, records a research memory, submits a forged claim, and shows the denied and allowed transfer simulations. It does not transfer tokens or exercise the live partner integrations. The temporary owner key is not saved, so its data is not accessible from a separate wallet session.
+
+For a local demo with an **actual protected token transfer**, install the EVM test dependencies and compile the local test token and contracts, start a gateway with an encryption key and local policy settings, then run:
+
+```bash
+.venv/bin/pip install -e '.[dev,contract-test]'
+(cd contracts && npm ci && node scripts/compile.mjs --with-test-token)
+.venv/bin/python -m memoryseal.demo.onchain
+```
+
+This creates fresh ephemeral accounts and an isolated PyEVM chain. It registers three agents with the running gateway, quarantines the forged claim, submits a transaction that reverts above the onchain limit, updates the limit as owner, and checks the recipient balance after the successful retry. The printed hashes belong to the temporary chain, which disappears when the command exits. Gateway and contract policies are separate. The ephemeral owner key is not retained for the dashboard. Any partner integrations configured on the gateway may still access their real networks; the demo does not verify those integrations. Disable mandatory onchain memory enforcement for this local demo because its temporary chain is not the gateway’s configured registry.
+
+For a local demo visible in the dashboard, provide `MEMORYSEAL_DEMO_OWNER_KEY` as the private key of a **dedicated, unfunded test wallet** and connect that wallet in the browser. The script reads it from the environment and does not print it. Agent keys remain temporary. Do not use a wallet containing real assets.
+
+The memory explorer and `list_memories(agent_id=..., namespace=..., status=..., memory_id=..., parent_id=..., offset=..., limit=...)` filter owner-scoped metadata. Search does not scan encrypted content. Pages use offsets and can shift when new memories arrive; the dashboard quarantine summary covers the latest 100 records.
+
+To repeat the optional ENS contract check, install the `contract-test` extra and point `MEMORYSEAL_ENS_ARTIFACTS` to `contracts/deployments/sepolia` in a checkout of [ENS contracts-v2](https://github.com/ensdomains/contracts-v2) at commit `07e55a056f5b6a9c90119f501bdd05714e67dddd`, then run `.venv/bin/pytest -q integrations/ens/test/test_real_registry.py`. It deploys official registry, factory and resolver bytecode to an isolated EVM, checking registry ownership and resolver delegation scope and revocation. It does not test the full hierarchy or a live wallet.
+
+`ProtectedTransferClient.execute` raises `SubmissionOutcomeUnknown` if the RPC response is lost, malformed, rejected, or returns a different hash after submission. The exception carries the locally computed `transaction_hash`; inspect it with `client.receipt(hash)` or a trusted explorer before deciding what to do. A missing receipt does not prove the transaction was never submitted or cannot later be included. The SDK does not automatically retry.
+
+## Browser login sessions
+
+Connecting the dashboard asks for one readable wallet signature to start a 30-minute read session. Dashboard refreshes, metadata searches, owner inspection, and team/vault GET requests reuse it. Write requests (including grants, revocations, memory writes and POST reads) still require their existing request-bound signatures; blockchain transactions retain their wallet confirmations. Python and TypeScript SDK authentication is unchanged outside the dashboard adapter.
+
+The gateway issues a five-minute, single-use challenge through `POST /auth/challenge`, verifies the signature through `POST /auth/session`, and returns an opaque bearer token. Session credentials are bound to wallet, configured dashboard origin, gateway audience and expiry; only token hashes are stored in SQLite. Existing endpoint ownership and policy checks still apply. The browser keeps tokens in memory, never localStorage. Sign out, wallet changes and network changes clear them and attempt server revocation through `POST /auth/logout`. If revocation cannot reach the server, the credential expires after 30 minutes. Reloading the page requires a new login. Expired sessions request a fresh signature on the next read.
+
+Deploy the backend before the frontend. Startup migrates SQLite to schema 11; retain the persistent volume and back it up before upgrading. Keep `MEMORYSEAL_DASHBOARD_ORIGINS` set to the exact frontend origin and match `NEXT_PUBLIC_GATEWAY_AUDIENCE` to `MEMORYSEAL_REQUEST_AUDIENCE`. No additional secret or environment variable is needed. If a proxy filters headers, allow `Authorization` and `Origin`. Rate-limit public authentication endpoints at the proxy. Read tokens are credentials: do not log them, and protect the frontend against script injection. This flow uses a MemorySeal-specific login message, not a claim of SIWE compliance, and does not remove wallet-provider reputation warnings.
+
+## Security boundary
+
+The local gateway checks signed requests and scoped capabilities. Its transfer simulator and the independently enforced Solidity transfer contract use separate policy stores; the contract path must be configured and exercised separately. The current implementation is a development prototype and has not been audited.
+
+The gateway rejects HTTP request bodies larger than 512 KiB before JSON parsing, including chunked requests. Deployments should also configure request-rate, connection, and time limits at their reverse proxy; the body limit alone does not prevent denial of service.
+
+Local transfer limits and simulated amounts accept positive uint256 values in base units. Send amounts as decimal strings to avoid JavaScript number rounding; `GET /capabilities` returns `max_amount` as a decimal string (or null), which is a response-format change for existing clients. The gateway automatically migrates legacy SQLite integer capability amounts into a new text column at startup; back up the database before upgrading. These local limits remain separate from onchain registry policy.
+
+Experimental gateway connection checking is required by default. Set `MEMORYSEAL_CONNECTION_ATTESTATION_VERIFIER` to an absolute path to a trusted, operator-built 0G pcverify binary. Set `MEMORYSEAL_CONNECTION_ATTESTATION_VERIFIER_SHA256` to the reviewed executable’s lowercase SHA-256 digest. Protect the executable and its parent directories; the digest check is not atomic with execution and does not cover trust roots or baselines. For each inference, the gateway checks the digest, runs the verifier in strict mode and requires the inference TLS connection to present the same certificate before sending credentials or memory. A missing, failing or incompatible verifier, or a certificate mismatch, fails closed and quarantines the write. This trusts the verifier, its inputs and trust roots; it does not independently verify the downstream provider execution or prove request/response binding. It has only local tests and has not passed against the live 0G testnet. Setting `MEMORYSEAL_REQUIRE_CONNECTION_ATTESTATION=false` disables this pre-send check and is a weaker, explicitly chosen prototype mode; do not use it with private content. The experimental bridge currently requires that setting and remains unverified.
+
+The current inference paths do not verify response binding to the submitted request. By default, the gateway therefore quarantines new memories even if the router or legacy signature check reports success, and withholds previously accepted memories from agent reads. Owner inspection remains available. `MEMORYSEAL_ALLOW_UNBOUND_INFERENCE=true` restores weaker compatibility behavior for controlled tests only; it does not verify request binding and must not be used for real private data or production decisions. The live P0 memory workflow remains incomplete until request-bound verification is implemented.
+
+
+## Team policies and encrypted vault
+
+The current build includes organization roles, a local TypeScript SDK, opt-in client-held encryption, online vault-key rotation, and explicit routing across configured EVM deployments. Start with [the feature/setup/test guide](../docs/TEAM_VAULT_MULTICHAIN.md) and [SDK README](../sdk/typescript/README.md). Build the SDK before the dashboard: `npm ci --prefix sdk/typescript && npm run build --prefix sdk/typescript`.
+
+Vault plaintext stays in the client and is not sent to the server's 0G classifier. Owner-approved sharing and independent inference verification are distinct. Existing ordinary memories keep their gateway-encrypted storage; additional live chains must be deployed/configured separately.
+
+### Frontend design and navigation
+
+See [the frontend guide](../docs/FRONTEND_DESIGN.md) for the neobrutalist design system, workspace navigation, focused agent/integration tasks, and responsive acceptance checks.
+
+### Railway gateway hosting
+
+Use the repository-root Dockerfile and a `/data` volume for the backend. Follow [the Railway deployment guide](../docs/RAILWAY_DEPLOYMENT.md) to configure the gateway and connect the Vercel website. The hosted database is separate from your laptop's database unless you explicitly migrate it.

@@ -1,5 +1,7 @@
 # Automatic sponsored ENS registration (Sepolia)
 
+> Submission navigation (7 November 2026): see [the current README](../README.md) and [judging guide](SUBMISSION.md). Dated observations below describe the state when recorded and must not be treated as a current deployment health report.
+
 Users create an agent with the normal signed MemorySeal request. The gateway atomically creates the agent, its permissions and an ENS registration job. Users do not need the parent wallet, Sepolia ETH or ENS transaction confirmations. The service assigns a unique name such as `research-48271.memoryseal.eth` and pays Sepolia gas using a dedicated registrar. New names use five random digits, with database collision checks and onchain availability checks before signing. If the label is already used onchain, the unsubmitted job picks another suffix. Existing registered names are unchanged.
 
 ## Activate once
