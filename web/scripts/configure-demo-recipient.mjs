@@ -1,0 +1,13 @@
+import {readFile,writeFile,rename} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {isAddress} from 'viem';
+import {privateKeyToAccount} from 'viem/accounts';
+const recipient=process.argv[2];
+if(!isAddress(recipient || '') || /^0x0{40}$/i.test(recipient))throw new Error('Usage: node web/scripts/configure-demo-recipient.mjs <your receiving address>');
+const file=resolve(import.meta.dirname,'../../.local-demo/wallet.json');
+const config=JSON.parse(await readFile(file,'utf8'));
+if(privateKeyToAccount(config.privateKey).address.toLowerCase()===recipient.toLowerCase())throw new Error('Use a separate receiving account.');
+config.recipient=recipient;
+const temp=`${file}.tmp`;
+await writeFile(temp,JSON.stringify(config,null,2)+'\n',{mode:0o600});await rename(temp,file);
+console.log(`Sepolia demo recipient configured: ${recipient}`);

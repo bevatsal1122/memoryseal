@@ -19,3 +19,6 @@ sdk/typescript/dist/
 .env.railway-integrations
 
 .env.railway-ens
+
+# Server-only Sepolia demo wallet and transaction journal
+.local-demo/

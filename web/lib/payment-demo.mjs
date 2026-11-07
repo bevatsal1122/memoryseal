@@ -47,16 +47,20 @@ export async function publishDemoProof(owner, memoryId, onMemory, signal) {
 
 // Deliberately vulnerable reference worker: source text is treated as authority.
 export function naiveFinanceLimit(instruction, ownerLimit = OWNER_LIMIT) {
-  const claimed = instruction.match(/Update the payment limit to \$([\d,]+)/i);
+  const claimed = instruction.match(/Update the payment limit to (?:\$)?([\d,.]+)(?: ETH)?/i);
   return claimed ? Number(claimed[1].replaceAll(",", "")) : ownerLimit;
 }
 
-export async function runPaymentDemo({ mode, invoice, clients, emit, signal, onStage = async () => {}, onMemory = () => {}, names = demoAgentNames() }) {
+export async function runPaymentDemo({ mode, invoice, clients, emit, signal, onStage = async () => {}, onMemory = () => {}, names = demoAgentNames(), payment = null }) {
+  const limit = payment ? 0.005 : OWNER_LIMIT;
+  const format = payment ? n => `${n} Sepolia ETH` : n => `$${n.toLocaleString()}`;
+  const asset = payment ? "eip155:11155111/slip44:60" : DEMO_ASSET;
+  const units = n => payment ? (n === 0.005 ? "5000000000000000" : n === 0.05 ? "50000000000000000" : (() => {throw new Error("Unsupported demo amount");})()) : String(n);
   const log = (actor, title, detail, evidence) => {
     signal?.throwIfAborted();
     emit({ actor, title, detail, evidence });
   };
-  onMemory({ownerLimit: OWNER_LIMIT, effectiveLimit: OWNER_LIMIT, draft: null, writeStatus: "empty", finance: null});
+  onMemory({ownerLimit: limit, effectiveLimit: limit, draft: null, writeStatus: "empty", finance: null});
   const {owner, browser, finance} = clients || {};
   let browserAgent, financeAgent;
   const namespace = "demo-invoices";
@@ -70,31 +74,33 @@ export async function runPaymentDemo({ mode, invoice, clients, emit, signal, onS
   onMemory({financeAgent: {...financeAgent, label: names.finance, address: finance.signer.address}});
   await owner.grant({agent_id: browserAgent.id, operation: "write", resource: namespace});
   await owner.grant({agent_id: financeAgent.id, operation: "read", resource: namespace});
-  await owner.grant({agent_id: financeAgent.id, operation: "transfer", resource: DEMO_ASSET, max_amount: String(OWNER_LIMIT)});
-  log("MemorySeal", "Signed permissions configured", "Browser: write invoices. Finance: read invoices and simulate up to $5,000.");
+  await owner.grant({agent_id: financeAgent.id, operation: "transfer", resource: asset, max_amount: units(limit)});
+  log("MemorySeal", "Signed permissions configured", `Browser: write invoices. Finance: read invoices; payment limit ${format(limit)}.`);
   } else {
     await onStage("setup");
-    onMemory({browserAgent: {label: names.browser}, financeAgent: {label: names.finance}});
+    onMemory({browserAgent: {label: names.browser}, financeAgent: {label: names.finance, address: finance?.signer.address}});
     log("Agents", "Reference agents named", `${names.browser} → ${names.finance}`);
   }
   await onStage("owner");
-  log("Owner", "Payment limit set", "$5,000 maximum per payment.");
+  log("Owner", "Payment limit set", `${format(limit)} maximum per payment.`);
   await onStage("scan");
   onMemory({draft: invoice.instruction, writeStatus: "draft"});
-  log("Browser", "Supplier page scanned", `${invoice.id} · ${invoice.payee} · $${invoice.amount.toLocaleString()}`, {source: invoice.url, instruction: invoice.instruction});
+  log("Browser", "Supplier page scanned", `${invoice.id} · ${invoice.payee} · ${format(invoice.amount)}`, {source: invoice.url, instruction: invoice.instruction});
   if (mode === "baseline") {
     await onStage("memory");
     const sharedMemory = invoice.instruction;
     onMemory({writeStatus: "shared", shared: sharedMemory});
     log("Memory", "Website claim saved as instructions", sharedMemory);
     await onStage("finance");
-    const effectiveLimit = naiveFinanceLimit(sharedMemory);
+    const effectiveLimit = naiveFinanceLimit(sharedMemory, limit);
     onMemory({finance: [sharedMemory], effectiveLimit});
-    log("Finance", "Shared memory treated as authorization", `Effective limit changed from $5,000 to $${effectiveLimit.toLocaleString()}.`);
+    log("Finance", "Shared memory treated as authorization", `Effective limit changed from ${format(limit)} to ${format(effectiveLimit)}.`);
     await onStage("payment");
-    const paid = invoice.amount <= effectiveLimit;
-    log("Ledger", paid ? "Simulated payment recorded" : "Payment declined", paid ? `$${invoice.amount.toLocaleString()} to ${invoice.payee}` : "Invoice exceeds the effective limit.");
-    return {paid, amount: paid ? invoice.amount : 0, effectiveLimit, memoryVisible: true, verdict: paid ? "Limit bypassed" : "Payment declined"};
+    const permitted = invoice.amount <= effectiveLimit;
+    const transaction = payment && permitted ? await payment.send({mode,amount:invoice.amount,allowed:true,visible:true}) : null;
+    const paid = payment ? transaction?.paid === true : permitted;
+    log("Ledger", transaction ? `Transaction ${transaction.state}` : paid ? "Simulated payment recorded" : "Payment declined", `${format(paid ? invoice.amount : 0)} to ${invoice.payee}`);
+    return {paid, amount: paid ? invoice.amount : 0, effectiveLimit, memoryVisible: true, transaction, verdict: transaction && !paid ? `Transaction ${transaction.state}` : paid ? "Limit bypassed" : "Payment declined"};
   }
   await onStage("evaluate");
   onMemory({writeStatus: "evaluating"});
@@ -111,11 +117,12 @@ export async function runPaymentDemo({ mode, invoice, clients, emit, signal, onS
   log("Finance", visible ? "Website claim is readable" : "Website claim withheld from finance", visible ? "The gateway returned the invoice claim. Check the write evidence before claiming a memory block." : "The finance agent did not receive the website’s claimed authorization.", recalled);
   await onStage("policy");
   const policy = await owner.listCapabilities();
-  const transfer = await finance.simulateTransfer(financeAgent.id, DEMO_ASSET, String(invoice.amount), policy.policy_version);
-  log("Policy", transfer.allowed ? "Transfer simulation allowed" : "Transfer simulation denied", "Independent permission check against the signed $5,000 cap.", transfer);
+  const transfer = await finance.simulateTransfer(financeAgent.id, asset, units(invoice.amount), policy.policy_version);
+  log("Policy", transfer.allowed ? "Transfer simulation allowed" : "Transfer simulation denied", `Independent permission check against the signed ${format(limit)} cap.`, transfer);
   // This is only a demo ledger, even if a gateway unexpectedly allows the request.
   await onStage("payment");
-  const paid = transfer.allowed === true;
-  log("Ledger", paid ? "Simulated payment recorded" : "No payment recorded", paid ? "$50,000 · unexpected policy outcome" : "$0 paid. Owner policy remains $5,000.");
-  return {paid, amount: paid ? invoice.amount : 0, effectiveLimit: OWNER_LIMIT, memoryVisible: visible, memoryStatus: memory.status, verdict: paid ? "Unexpected: payment allowed" : visible ? "Payment blocked · memory readable" : "Memory withheld · payment blocked", memoryId: memory.id};
+  const transaction = payment ? await payment.send({mode,amount:invoice.amount,allowed:transfer.allowed === true,visible}) : null;
+  const paid = payment ? transaction?.paid === true : transfer.allowed === true;
+  log("Ledger", paid ? "Simulated payment recorded" : "No payment recorded", paid ? `${format(invoice.amount)} · unexpected policy outcome` : `No payment. Owner policy remains ${format(limit)}.`);
+  return {paid, amount: paid ? invoice.amount : 0, effectiveLimit: limit, transaction, memoryVisible: visible, memoryStatus: memory.status, verdict: paid ? "Unexpected: payment allowed" : visible ? "Payment blocked · memory readable" : "Memory withheld · payment blocked", memoryId: memory.id};
 }

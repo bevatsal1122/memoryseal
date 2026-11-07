@@ -16,6 +16,7 @@ export default function EnsRegistrationProgress({ registration }) {
       <div><span className="ens-progress-eyebrow">SEPOLIA · ENS</span><strong className="ens-progress-name">{registration.name}</strong></div>
       <span className="ens-progress-badge">{complete ? "✓ Ready" : `${completed} / 4 steps`}</span>
     </header>
+    {!complete && <>
     <div className="ens-progress-caption"><span role="status">{title}</span><b>{percent}%</b></div>
     <div className="ens-progress-track" role="progressbar" aria-label="Verified ENS setup progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${completed} of 4 steps verified. ${title}`}>
       <div className="ens-progress-fill" style={{width: `${percent}%`}} />
@@ -25,6 +26,7 @@ export default function EnsRegistrationProgress({ registration }) {
         <span className="ens-progress-dot" aria-hidden="true">{i < completed ? "✓" : i + 1}</span><span>{step.label}</span>
       </li>)}
     </ol>
+    </>}
     {!complete && registration.message && <p className="ens-progress-message">{registration.message}</p>}
     {!!registration.transactions?.length && <details className="ens-progress-transactions"><summary>View transactions <span aria-hidden="true">↗</span></summary><div>
       {registration.transactions.map((hash, i) => <a key={hash} href={`https://sepolia.etherscan.io/tx/${hash}`} target="_blank" rel="noreferrer">{stages[i]?.label || `Transaction ${i + 1}`} ↗</a>)}

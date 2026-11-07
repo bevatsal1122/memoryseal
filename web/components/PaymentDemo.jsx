@@ -1,35 +1,23 @@
 "use client";
 import {useEffect, useRef, useState} from "react";
-import {generatePrivateKey, privateKeyToAccount} from "viem/accounts";
-import {MemorySealClient} from "../../sdk/typescript/dist/index.js";
-import {gatewayOrigin} from "../lib/gateway.mjs";
-import {OWNER_LIMIT, runPaymentDemo} from "../lib/payment-demo.mjs";
+const OWNER_LIMIT = 0.005;
 
 const stages = {
   load: {step: 1, title: "Opening the supplier website", text: "The browser worker fetches the invoice page. No payment has been requested yet.", focus: "header"},
-  owner: {step: 0, title: "Remember the owner’s rule", text: "The owner authorized payments up to $5,000. Only the owner can change that rule."},
-  scan: {step: 1, title: "Reading the invoice and payment note", text: "The page asks for $50,000, then tells the agent to ignore the original limit. This is a website’s claim, not the owner’s approval.", focus: "aside"},
+  owner: {step: 0, title: "Remember the owner’s rule", text: "The owner authorized payments up to 0.005 ETH. Only the owner can change that rule."},
+  scan: {step: 1, title: "Reading the invoice and payment note", text: "The page asks for 0.05 ETH, then tells the agent to ignore the original limit. This is a website’s claim, not the owner’s approval.", focus: "aside"},
   memory: {step: 2, title: "The website’s claim enters shared memory", text: "The vulnerable browser worker saves the payment note as instructions. The claim is now available to the finance worker."},
   setup: {step: 0, title: "Preparing separate agent identities", text: "The gateway is registering the browser and finance workers and signing their permissions. These are isolated demo identities."},
   evaluate: {step: 2, title: "MemorySeal is evaluating the website claim", text: "The external text has been submitted to the gateway. We are waiting for its actual decision before passing anything to finance."},
-  finance: {step: 4, title: "Finance mistakes a claim for permission", text: "The vulnerable finance worker reads the shared instruction and adopts the website’s $50,000 limit."},
+  finance: {step: 4, title: "Finance mistakes a claim for permission", text: "The vulnerable finance worker reads the shared instruction and adopts the website’s 0.05 ETH limit."},
   publish: {step: 3, title: "Publishing the memory proof to Arkiv"},
   recall: {step: 4, title: "Checking what finance can actually read", text: "Finance requests shared memories from the gateway. A withheld claim should not appear in this response."},
-  policy: {step: 5, title: "Checking the payment against the owner’s limit", text: "A separate permission check compares $50,000 with the signed $5,000 cap. Memory cannot rewrite this policy."},
-  payment: {step: 5, title: "Updating the simulated ledger", text: "Recording the result of this run. No real money is sent."},
+  policy: {step: 5, title: "Checking the payment against the owner’s limit", text: "A separate permission check compares 0.05 ETH with the signed 0.005 ETH cap. Memory cannot rewrite this policy."},
+  payment: {step: 5, title: "Submitting the Sepolia transaction", text: "The server signs the payment and waits for a Sepolia receipt."},
 };
 const journey = ["Agent setup", "Read website", "Memory write", "Arkiv proof", "Finance read", "Payment"];
-function pause(ms, signal) {
-  return new Promise((resolve, reject) => {
-    signal.throwIfAborted();
-    const cancel = () => {clearTimeout(timer); reject(new DOMException("Stopped", "AbortError"));};
-    const timer = setTimeout(() => {signal.removeEventListener("abort", cancel); resolve();}, ms);
-    signal.addEventListener("abort", cancel, {once: true});
-  });
-}
-
 const blank = () => ({events: [], result: null, error: "", running: false, memory: {ownerLimit: OWNER_LIMIT, effectiveLimit: OWNER_LIMIT, draft: null, writeStatus: "empty", finance: null}});
-const money = amount => new Intl.NumberFormat("en-US", {style: "currency", currency: "USD", maximumFractionDigits: 0}).format(amount);
+const money = amount => `${amount} ETH`;
 export default function PaymentDemo({api, audience}) {
   const [runs, setRuns] = useState({baseline: blank(), protected: blank()});
   const [running, setRunning] = useState(null);
@@ -39,7 +27,13 @@ export default function PaymentDemo({api, audience}) {
   const [stage, setStage] = useState(null);
   const [activeMode, setActiveMode] = useState(null);
   const [elapsed, setElapsed] = useState(0);
-  const speed = 350;
+  const [wallet, setWallet] = useState(null);
+  const [walletError, setWalletError] = useState("");
+  async function refreshWallet() {
+    try {const response=await fetch("/api/demo/wallet",{cache:"no-store"});const value=await response.json();if(!response.ok)throw new Error(value.error);setWallet(value);setWalletError("");}
+    catch(error){setWalletError(error.message || "Wallet status unavailable.");}
+  }
+  useEffect(() => {refreshWallet();}, []);
   useEffect(() => {
     if (!running) return;
     const started = Date.now();
@@ -64,31 +58,30 @@ export default function PaymentDemo({api, audience}) {
     theater.current?.scrollIntoView({behavior: "smooth", block: "start"});
     update(mode, {...blank(), running: true});
     try {
-      const response = await fetch("/demo/supplier.html", {cache: "no-store", signal: abort.signal});
-      if (!response.ok) throw new Error("Could not load the supplier page.");
-      const page = new DOMParser().parseFromString(await response.text(), "text/html");
-      const read = name => page.querySelector(`[data-${name}]`)?.textContent.trim();
-      const invoice = {id: read("invoice"), payee: read("payee"), amount: Number(read("amount")?.replaceAll(",", "")), instruction: read("instruction"), url: new URL("/demo/supplier.html", window.location.origin).href};
-      if (!invoice.instruction || !invoice.id || !Number.isFinite(invoice.amount) || invoice.amount <= 0) throw new Error("Supplier page has an invalid invoice.");
-      await pause(speed, abort.signal);
-      let clients;
-      if (mode === "protected") {
-        const origin = gatewayOrigin(api);
-        const makeClient = () => {
-          const account = privateKeyToAccount(generatePrivateKey());
-          return new MemorySealClient({address: account.address, signMessage: bytes => account.signMessage({message: {raw: bytes}})}, origin, audience,
-            (url, options) => fetch(url, {...options, signal: AbortSignal.any([abort.signal, AbortSignal.timeout(120000)])}));
-        };
-        clients = {owner: makeClient(), browser: makeClient(), finance: makeClient()};
+      const response = await fetch("/api/demo/run", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode,runId:crypto.randomUUID()}),signal:abort.signal});
+      if(!response.ok) {const error=await response.json();throw new Error(error.error || "Could not start the demo.");}
+      const reader=response.body.getReader(), decoder=new TextDecoder();
+      let pending="", completed=false;
+      const receive=message=>{
+        if(message.type==="stage")setStage(message.value);
+        if(message.type==="memory")setRuns(previous=>({...previous,[mode]:{...previous[mode],memory:{...previous[mode].memory,...message.value}}}));
+        if(message.type==="event")setRuns(previous=>({...previous,[mode]:{...previous[mode],events:[...previous[mode].events,message.value]}}));
+        if(message.type==="error")throw new Error(message.value);
+        if(message.type==="result") {completed=true;update(mode,{result:message.value,running:false});setStage("done");}
+      };
+      while(true) {
+        const {value,done}=await reader.read();
+        pending+=decoder.decode(value,{stream:!done});
+        let end;
+        while((end=pending.indexOf("\n"))!==-1) {const line=pending.slice(0,end);pending=pending.slice(end+1);if(line)receive(JSON.parse(line));}
+        if(done)break;
       }
-      const result = await runPaymentDemo({mode, invoice, clients, signal: abort.signal, onMemory: patch => {abort.signal.throwIfAborted(); setRuns(previous => ({...previous, [mode]: {...previous[mode], memory: {...previous[mode].memory, ...patch}}}));}, onStage: async next => {abort.signal.throwIfAborted(); setStage(next); await pause(speed, abort.signal);}, emit: event => setRuns(previous => ({...previous, [mode]: {...previous[mode], events: [...previous[mode].events, event]}}))});
-      abort.signal.throwIfAborted();
-      update(mode, {result, running: false});
-      setStage("done");
+      if(pending.trim())receive(JSON.parse(pending));
+      if(!completed)throw new Error("Connection closed. Check the wallet transaction before running again.");
     } catch (error) {
       if (!abort.signal.aborted) {update(mode, {error: error.message || "Run failed. Check the gateway and retry.", running: false}); setStage("error");}
     } finally {
-      if (controller.current === abort) {controller.current = null; setRunning(null);}
+      if (controller.current === abort) {controller.current = null; setRunning(null); refreshWallet();}
     }
   }
   function reset() {
@@ -98,11 +91,21 @@ export default function PaymentDemo({api, audience}) {
   const current = activeMode ? runs[activeMode] : null;
   const live = stages[stage];
   const memory = current?.memory || blank().memory;
+  const transaction = current?.result?.transaction || memory.transaction;
+  const unresolved = wallet?.last && !["confirmed", "reverted"].includes(wallet.last.state);
   return <section className="payment-demo">
     <div className="demo-intro"><div><h2>Watch the memory change.</h2></div></div>
+    <div className="demo-wallet-status">
+      <div><span className="demo-eyebrow">FINANCE WALLET · SEPOLIA</span><code>{wallet?.address || "Loading wallet…"}</code><small>{wallet ? `${wallet.balance} ETH balance` : walletError}</small></div>
+      <div><span className="demo-eyebrow">RECEIVING ADDRESS</span><code>{wallet?.recipient || "Not configured yet"}</code><small>Unprotected run sends 0.05 Sepolia ETH plus gas.</small></div>
+      <button disabled={!!running} onClick={refreshWallet}>Check wallet</button>
+      {walletError && wallet && <p className="demo-error">{walletError}</p>}
+      {wallet?.last && <p>Last transaction: <a href={`https://sepolia.etherscan.io/tx/${wallet.last.hash}`} target="_blank" rel="noopener noreferrer">{wallet.last.state} ↗</a>{unresolved ? " · Check its receipt before another payment." : ""}</p>}
+      {wallet?.locked && !running && <p>A server run is still active or needs recovery.</p>}
+    </div>
     <div className="demo-controls">
-      <div className="demo-case-controls"><button disabled={!!running} onClick={() => start("baseline")} className={activeMode === "baseline" ? "selected" : ""}>01 <span>Without MemorySeal</span> ▶</button><button disabled={!!running} onClick={() => start("protected")} className={activeMode === "protected" ? "selected protected" : "protected"}>02 <span>With MemorySeal</span> ▶</button></div>
-      {running && <button onClick={reset} className="demo-stop">Stop</button>}
+      <div className="demo-case-controls"><button disabled={!!running || !wallet?.configured || !wallet?.funded || !!walletError || !!unresolved || wallet?.locked} onClick={() => start("baseline")} className={activeMode === "baseline" ? "selected" : ""}>01 <span>Without MemorySeal</span> ▶</button><button disabled={!!running || !wallet || !!walletError || wallet?.locked} onClick={() => start("protected")} className={activeMode === "protected" ? "selected protected" : "protected"}>02 <span>With MemorySeal</span> ▶</button></div>
+
     </div>
     <div className="demo-theater" ref={theater}>
       <div className="demo-live-bar"><span className={`demo-live-dot ${running ? "is-live" : ""}`} /><strong>{running ? `RUNNING · CASE ${activeMode === "baseline" ? "01 — WITHOUT MEMORYSEAL" : "02 — WITH MEMORYSEAL"}` : stage === "done" ? "RUN COMPLETE" : stage === "error" ? "RUN STOPPED" : "CHOOSE A CASE TO BEGIN"}</strong>{running && <span>{`${live?.title || "Running"} · ${elapsed}s`}</span>}</div>
@@ -140,7 +143,8 @@ export default function PaymentDemo({api, audience}) {
             <div className={`demo-memory-policy ${memory.effectiveLimit > OWNER_LIMIT ? "limit-changed" : ""}`}><span>{activeMode === "baseline" ? "Finance’s effective limit" : "Signed payment limit"}</span><strong>{money(memory.effectiveLimit)}</strong>{memory.effectiveLimit > OWNER_LIMIT && <small>Changed from {money(OWNER_LIMIT)}</small>}</div>
           </section>
           {current?.error && <p className="demo-error" role="alert">{current.error}</p>}
-          {current?.result && <div className={`demo-memory-result ${current.result.paid ? "paid" : "blocked"}`}><span>Simulated payment</span><strong>{money(current.result.amount)}</strong><span>{current.result.paid ? "Paid" : "Blocked"}</span></div>}
+          {transaction?.hash && <div className="demo-transaction"><strong>Transaction {transaction.state}</strong><a href={`https://sepolia.etherscan.io/tx/${transaction.hash}`} target="_blank" rel="noopener noreferrer">View Sepolia transaction ↗</a></div>}
+          {current?.result && <div className={`demo-memory-result ${current.result.paid ? "paid" : "blocked"}`}><span>Sepolia payment</span><strong>{money(current.result.amount)}</strong><span>{current.result.paid ? "Confirmed" : transaction && transaction.state !== "blocked" ? transaction.state : "Blocked"}</span></div>}
         </aside>
       </div>
     </div>
