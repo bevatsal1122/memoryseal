@@ -342,7 +342,6 @@ function DashboardSession({ signal }) {
     ["vault", "Encrypted vault"],
     ["activity", "Activity"],
     ["workbench", "Playground"],
-    ["demo", "Demo"],
     ...(devMode ? [["settings", "Settings"]] : []),
   ];
   const activeAgents = data?.agents.filter((a) => !a.revoked).length || 0;
