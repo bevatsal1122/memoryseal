@@ -17,3 +17,5 @@ contracts/artifacts/
 sdk/typescript/dist/
 
 .env.railway-integrations
+
+.env.railway-ens

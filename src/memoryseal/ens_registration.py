@@ -23,6 +23,8 @@ def enqueue(db, agent):
         return None
     if not settings.ens_registrar_private_key or settings.ens_network != 'sepolia' or not settings.ens_rpc_url:
         raise HTTPException(503, 'Automatic ENS registration is not configured')
+    if int(agent.signing_address, 16) == 0:
+        raise HTTPException(422, 'A nonzero agent address is required for ENS')
     since = datetime.now(UTC) - timedelta(days=1)
     query = select(func.count()).select_from(EnsRegistrationJob).where(EnsRegistrationJob.created_at >= since)
     total = db.scalar(query)

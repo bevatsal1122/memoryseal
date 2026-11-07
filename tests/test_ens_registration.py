@@ -63,3 +63,34 @@ def test_revoked_unsubmitted_job_does_not_spend(queue):
         row=db.scalar(select(EnsRegistrationJob));db.get(Agent,row.agent_id).revoked=True;db.commit()
     tick(queue,call=lambda *a,**kw:pytest.fail('must not submit'),now=100)
     with queue() as db:assert db.scalar(select(EnsRegistrationJob)).state=='cancelled'
+
+def test_signed_setup_enqueues_once_and_ignores_claimed_ens_name(queue):
+    from fastapi.testclient import TestClient
+    from memoryseal.api import app
+    from memoryseal.auth import authenticate
+    from memoryseal.db import get_session
+    owner='0x'+'4'*40
+    def db_session():
+        with queue() as db:yield db
+    old=dict(app.dependency_overrides)
+    app.dependency_overrides[get_session]=db_session
+    app.dependency_overrides[authenticate]=lambda:owner
+    try:
+        client=TestClient(app)
+        body={'request_id':str(uuid4()),'signing_address':'0x'+'5'*40,'label':'Research',
+              'ens_name':'someone-elses.eth','namespace':'research','operations':['read','write'],
+              'acceptance':'strict','policy_version':0,'sponsored_ens':True}
+        first=client.post('/agents/setup',json=body)
+        assert first.status_code==201,first.text
+        again=client.post('/agents/setup',json=body)
+        assert again.status_code==201 and again.json()==first.json()
+        assert first.json()['ens_registration']['state']=='queued'
+        assert first.json()['ens_registration']['name'].endswith('.memoryseal.eth')
+        listing=client.get('/agents').json()['agents'];assert len(listing)==1
+        assert listing[0]['ens_name'] is None
+        assert listing[0]['ens_registration']['state']=='queued'
+        with queue() as db:
+            rows=db.scalars(select(EnsRegistrationJob).where(EnsRegistrationJob.owner_address==owner)).all()
+            assert len(rows)==1
+    finally:
+        app.dependency_overrides.clear();app.dependency_overrides.update(old)

@@ -103,3 +103,7 @@ The deployed readiness endpoint confirmed all integration configuration flags. L
 The ENS parent and deployed contracts are shared testnet infrastructure; the owner's local registrations and permissions are not automatically imported into Railway. Users still register agents and grant their own capabilities in their connected-wallet workspace. Onchain transactions require the appropriate wallet, chain, gas and token allowance. No new chain or real-money deployment is implied by configuring the Sepolia observer.
 
 The apex domain redirects to `https://www.memoryseal.work/`. Both origins must be listed explicitly in `MEMORYSEAL_DASHBOARD_ORIGINS`; allowing the apex alone does not allow the redirected website.
+
+### Sponsored Sepolia ENS
+
+See [ENS_AGENT_SETUP.md](ENS_AGENT_SETUP.md) for the dedicated registrar variables, one-time parent authorization, persistent transaction queue and user flow. Do not use the parent-owner or Arkiv publisher key as the ENS signer. Deploy schema 14 with the existing persistent volume and one replica.

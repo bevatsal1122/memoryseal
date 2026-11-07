@@ -15,6 +15,7 @@ import MemoryMap from "../components/MemoryMap";
 import ActivityFeed from "../components/ActivityFeed";
 import PaymentDemo from "../components/PaymentDemo";
 import AgentSetup from "../components/AgentSetup";
+import EnsSponsorAdmin from "../components/EnsSponsorAdmin";
 import AgentCard from "../components/AgentCard";
 import MemoryEvidence from "../components/MemoryProof";
 import AgentWorkbench from "../components/AgentWorkbench";
@@ -1046,6 +1047,7 @@ function DashboardSession({ signal }) {
                 )}
               </section>
               <section className="panel-ens">
+                <EnsSponsorAdmin account={account} request={request} />
                 <h2>Agent names</h2>
                 <details className="settings-task"><summary>Manage ENS records & ownership</summary>
                 <p className="muted">

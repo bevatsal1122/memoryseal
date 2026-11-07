@@ -5,7 +5,7 @@ from sqlalchemy.engine import Engine
 
 from memoryseal.db import Base
 
-# Version 13 adds guided setup receipts, agent labels, and durable publication scheduling.
+# Version 14 adds the durable sponsored ENS registration queue.
 SCHEMA_VERSION = 14
 
 
