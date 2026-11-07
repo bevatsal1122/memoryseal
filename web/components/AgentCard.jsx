@@ -1,7 +1,8 @@
 "use client";
+import EnsRegistrationProgress from "./EnsRegistrationProgress";
 import { capabilityActive } from "../lib/expiry.mjs";
 
-export default function AgentCard({ agent, capabilities, observation, busy, onCheckEns, onManageEns, onRevoke }) {
+export default function AgentCard({ agent, capabilities, observation, busy, onCheckEns, onRevoke }) {
   const grants = agent.revoked ? [] : capabilities.filter(c => c.agent_id === agent.id && capabilityActive(c));
   const collections = [...new Set(grants.filter(c => c.operation === "read" || c.operation === "write").map(c => c.resource))];
   const name = agent.label || agent.ens_name?.split(".")[0] || "Unnamed agent";
@@ -21,11 +22,7 @@ export default function AgentCard({ agent, capabilities, observation, busy, onCh
       <div><dt>Permissions</dt><dd>{grants.length}</dd></div>
       <div><dt>Collections</dt><dd>{collections.length}</dd></div>
     </dl>
-    {agent.ens_registration && <div className="detail" role="status">
-      <b>{agent.ens_registration.name}</b>
-      <p>{agent.ens_registration.state === "registered" ? "ENS registered on Sepolia" : agent.ens_registration.message || `ENS ${agent.ens_registration.state} · ${agent.ens_registration.step}`}</p>
-      {agent.ens_registration.transactions.map((hash,i) => <a key={hash} href={`https://sepolia.etherscan.io/tx/${hash}`} target="_blank" rel="noreferrer">Transaction {i+1} ↗ </a>)}
-    </div>}
+    {agent.ens_registration && <EnsRegistrationProgress registration={agent.ens_registration} />}
     <details className="agent-record-details" onToggle={e => {
       if (e.target === e.currentTarget && e.currentTarget.open && agent.ens_name && !observation) onCheckEns();
     }}>
@@ -42,7 +39,6 @@ export default function AgentCard({ agent, capabilities, observation, busy, onCh
           {grants.length ? <ul>{grants.map(c => <li key={c.id}><b>{c.operation}</b><code>{c.resource}</code>{c.max_amount && <span>Limit: {c.max_amount} base units</span>}{c.expires_at && <span>Expires {new Date(/[Zz]|[+-]\d{2}:\d{2}$/.test(c.expires_at) ? c.expires_at : `${c.expires_at}Z`).toLocaleString()}</span>}</li>)}</ul> : <p>No active permissions.</p>}
         </div>
         <div className="inline">
-          <button disabled={busy} onClick={onManageEns}>Manage ENS name</button>
           {agent.ens_name && <a className="neo-button" href="https://explorer.ens.dev" target="_blank" rel="noopener noreferrer">ENS explorer <span aria-hidden="true">↗</span></a>}
           {observation?.error && <button disabled={busy} onClick={onCheckEns}>Retry ENS check</button>}
         </div>

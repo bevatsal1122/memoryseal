@@ -94,3 +94,29 @@ def test_signed_setup_enqueues_once_and_ignores_claimed_ens_name(queue):
             assert len(rows)==1
     finally:
         app.dependency_overrides.clear();app.dependency_overrides.update(old)
+
+def test_short_names_retry_database_collisions(queue, monkeypatch):
+    import re
+    with queue() as db:
+        existing=db.scalar(select(EnsRegistrationJob))
+        assert re.fullmatch(r'research-\d{5}\.memoryseal\.eth',existing.name)
+        suffix=int(existing.name.split('.')[0].rsplit('-',1)[1])
+        alternative=10000 if suffix!=10000 else 10001
+        draws=iter([suffix-10000,alternative-10000])
+        monkeypatch.setattr('memoryseal.ens_registration.secrets.randbelow',lambda _:next(draws))
+        a=Agent(id=str(uuid4()),owner_address='0x'+'6'*40,signing_address='0x'+'7'*40,label='Research')
+        db.add(a);db.flush();row=enqueue(db,a);db.flush()
+        assert row.name==f'research-{alternative}.memoryseal.eth'
+        assert existing.name!=row.name
+
+def test_onchain_collision_renames_only_unsigned_job(queue,monkeypatch):
+    with queue() as db:old=db.scalar(select(EnsRegistrationJob)).name
+    seen=[]
+    def call(action,**payload):
+        assert action=='prepare';seen.append(payload['job']['name']);return {'state':'unavailable'}
+    tick(queue,call=call,now=100)
+    with queue() as db:
+        row=db.scalar(select(EnsRegistrationJob));assert row.name!=old
+        assert json.loads(row.context_json)['name']==row.name
+        assert row.signed_transaction is None and row.stage==0
+    assert seen==[old]

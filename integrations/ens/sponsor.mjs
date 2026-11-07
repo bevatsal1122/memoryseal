@@ -58,7 +58,7 @@ try {
    const id=BigInt(keccak256(stringToHex(job.label)));
    const status=await publicClient.readContract({address:state.registry,abi,functionName:'getStatus',args:[id]});
    const expiry=await publicClient.readContract({address:state.registry,abi,functionName:'getExpiry',args:[id]});
-   if(Number(status)!==0||expiry!==0n)throw Error('name unavailable');
+   if(Number(status)!==0||expiry!==0n){output({state:'unavailable'});process.exit(0);}
    const roles=(1n<<16n)|(1n<<20n)|(1n<<24n)|(1n<<156n);
    const {request}=await publicClient.simulateContract({address:state.registry,abi,functionName:'register',args:[job.label,account.address,zeroAddress,zeroAddress,roles,BigInt(job.expiry)],account});
    const transactionHash=await walletClient.writeContract(request);

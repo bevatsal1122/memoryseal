@@ -99,6 +99,14 @@ function DashboardSession({ signal }) {
   const searchSequence = useRef(0);
   const [account, setAccount] = useState("");
   const [view, setView] = useWorkspaceNavigation();
+  const [devMode, setDevMode] = useState(false);
+  useEffect(() => {
+    const update = () => setDevMode(new URLSearchParams(window.location.search).get("devmode") === "true");
+    update();
+    window.addEventListener("popstate", update);
+    window.addEventListener("hashchange", update);
+    return () => {window.removeEventListener("popstate", update); window.removeEventListener("hashchange", update);};
+  }, []);
   const [integrationTab, setIntegrationTab] = useState("connections");
   const [data, setData] = useState(null);
   const [memoryPage, setMemoryPage] = useState(null);
@@ -335,7 +343,7 @@ function DashboardSession({ signal }) {
     ["activity", "Activity"],
     ["workbench", "Playground"],
     ["demo", "Demo"],
-    ["settings", "Settings"],
+    ...(devMode ? [["settings", "Settings"]] : []),
   ];
   const activeAgents = data?.agents.filter((a) => !a.revoked).length || 0;
   const quarantineCount =
@@ -583,7 +591,6 @@ function DashboardSession({ signal }) {
                           .then(result => setEnsObservations(p => ({...p, [a.id]: result.observation})))
                           .catch(error => setEnsObservations(p => ({...p, [a.id]: {error: error.message}})));
                       }}
-                      onManageEns={() => {setEnsAgent(a.signing_address); setView("settings"); setIntegrationTab("names");}}
                       onRevoke={() => run(async () => {
                         await request(account, "POST", `/agents/${a.id}/revoke`, {});
                         await refresh(account);

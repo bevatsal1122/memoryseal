@@ -2,13 +2,14 @@
 import json
 import os
 import re
+import secrets
 import subprocess
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
 from memoryseal.config import settings
 from memoryseal.models import Agent, EnsRegistrationJob
@@ -16,6 +17,16 @@ from memoryseal.publication_loop import PublicationLoop
 
 SCRIPT = Path(__file__).resolve().parents[2] / 'integrations/ens/sponsor.mjs'
 STAGES = ('registration', 'resolver', 'attachment', 'address')
+
+
+def allocate_name(db, agent, parent):
+    prefix = re.sub(r'[^a-z0-9]+', '-', (agent.label or 'agent').lower()).strip('-')[:24] or 'agent'
+    for _ in range(100):
+        label = f'{prefix}-{10000 + secrets.randbelow(90000)}'
+        name = f'{label}.{parent}'
+        if not db.scalar(select(EnsRegistrationJob.agent_id).where(EnsRegistrationJob.name == name)) and not db.scalar(select(Agent.id).where(Agent.ens_name == name)):
+            return label, name
+    raise HTTPException(409, 'Could not allocate an available ENS name; please retry')
 
 
 def enqueue(db, agent):
@@ -34,9 +45,7 @@ def enqueue(db, agent):
     parent = settings.ens_parent
     if not re.fullmatch(r'[a-z0-9-]+\.eth', parent):
         raise HTTPException(503, 'Invalid sponsored ENS parent configuration')
-    prefix = re.sub(r'[^a-z0-9]+', '-', (agent.label or 'agent').lower()).strip('-')[:24] or 'agent'
-    label = f'{prefix}-{agent.id.replace("-", "")}'
-    name = f'{label}.{parent}'
+    label, name = allocate_name(db, agent, parent)
     context = dict(parentName=parent, label=label, name=name, agentAddress=agent.signing_address,
                    expiry=str(int(time.time()) + 365 * 86400), salt=str(int(agent.id.replace('-', ''), 16)))
     row = EnsRegistrationJob(agent_id=agent.id, owner_address=agent.owner_address, name=name,
@@ -88,6 +97,17 @@ def tick(sessions, *, call=adapter, now=None):
         try:
             if not row.signed_transaction:
                 prepared = call('prepare', job=context)
+                if prepared.get('state') == 'unavailable' and row.stage == 0:
+                    # No transaction has been signed. Reserve another short name
+                    # under the same writer lock used by agent creation.
+                    db.execute(text('BEGIN IMMEDIATE'))
+                    label, name = allocate_name(db, agent, context['parentName'])
+                    context.update(label=label, name=name)
+                    row.name = name
+                    row.context_json = json.dumps(context)
+                    row.next_check_at = now
+                    db.commit()
+                    return
                 if not re.fullmatch(r'0x[0-9a-fA-F]+', prepared['raw']) or not re.fullmatch(r'0x[0-9a-fA-F]{64}', prepared['hash']):
                     raise ValueError('Invalid adapter transaction')
                 context[STAGES[row.stage]] = prepared['result']

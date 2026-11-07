@@ -39,7 +39,7 @@ export default function PaymentDemo({api, audience}) {
   const [stage, setStage] = useState(null);
   const [activeMode, setActiveMode] = useState(null);
   const [elapsed, setElapsed] = useState(0);
-  const [speed, setSpeed] = useState(1800);
+  const speed = 350;
   useEffect(() => {
     if (!running) return;
     const started = Date.now();
@@ -99,14 +99,13 @@ export default function PaymentDemo({api, audience}) {
   const live = stages[stage];
   const memory = current?.memory || blank().memory;
   return <section className="payment-demo">
-    <div className="demo-intro"><div><h2>Watch the memory change.</h2></div><button className="demo-reset" disabled={!!running} onClick={reset}>Reset demo</button></div>
+    <div className="demo-intro"><div><h2>Watch the memory change.</h2></div></div>
     <div className="demo-controls">
       <div className="demo-case-controls"><button disabled={!!running} onClick={() => start("baseline")} className={activeMode === "baseline" ? "selected" : ""}>01 <span>Without MemorySeal</span> ▶</button><button disabled={!!running} onClick={() => start("protected")} className={activeMode === "protected" ? "selected protected" : "protected"}>02 <span>With MemorySeal</span> ▶</button></div>
-      <label>Playback <select value={speed} disabled={!!running} onChange={e => setSpeed(Number(e.target.value))}><option value={1800}>Guided</option><option value={350}>Fast</option></select></label>
       {running && <button onClick={reset} className="demo-stop">Stop</button>}
     </div>
     <div className="demo-theater" ref={theater}>
-      <div className="demo-live-bar"><span className={`demo-live-dot ${running ? "is-live" : ""}`} /><strong>{running ? `RUNNING · CASE ${activeMode === "baseline" ? "01 — WITHOUT MEMORYSEAL" : "02 — WITH MEMORYSEAL"}` : stage === "done" ? "RUN COMPLETE" : stage === "error" ? "RUN STOPPED" : "CHOOSE A CASE TO BEGIN"}</strong><span>{running ? `${live?.title || "Running"} · ${elapsed}s` : "Reference agents · Simulated payments"}</span></div>
+      <div className="demo-live-bar"><span className={`demo-live-dot ${running ? "is-live" : ""}`} /><strong>{running ? `RUNNING · CASE ${activeMode === "baseline" ? "01 — WITHOUT MEMORYSEAL" : "02 — WITH MEMORYSEAL"}` : stage === "done" ? "RUN COMPLETE" : stage === "error" ? "RUN STOPPED" : "CHOOSE A CASE TO BEGIN"}</strong>{running && <span>{`${live?.title || "Running"} · ${elapsed}s`}</span>}</div>
       <ol className="demo-journey">{journey.map((name, i) => <li key={name} className={stage === "done" || (live && i < live.step) ? "complete" : live?.step === i ? "current" : ""}><span>{stage === "done" || (live && i < live.step) ? "✓" : `0${i + 1}`}</span>{name}{i < journey.length - 1 && <b aria-hidden="true">→</b>}</li>)}</ol>
       <div className="demo-scenario">
         <div className="demo-website demo-website-plain"><header><span>Supplier page</span><a href="/demo/supplier.html" target="_blank" rel="noopener noreferrer">Open page ↗</a></header><iframe ref={frame} title="Demo supplier invoice with an untrusted payment instruction" src="/demo/supplier.html" sandbox="allow-same-origin" /></div>
