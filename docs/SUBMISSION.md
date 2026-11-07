@@ -8,7 +8,9 @@ Prepared 7 November 2026. This is a submission pack, not confirmation of prize e
 - Direct demo: https://www.memoryseal.work/#demo
 - Repository: https://github.com/bevatsal1122/memoryseal
 - Video: **TO ADD BY AUTHOR — under three minutes for the 0G submission**
-- Team members and Telegram/X contact: **TO CONFIRM BY AUTHOR**. GitHub maintainer: bevatsal1122. Do not infer legal names or contact handles from the account name.
+- Team name: **MemorySeal**.
+- Contact email: **bevatsal1122@gmail.com**.
+- GitHub maintainer: bevatsal1122. Individual team member names and a Telegram/X contact are not yet supplied; do not infer them from the team name or email.
 
 ## Short description
 
@@ -74,7 +76,7 @@ The earliest commit in this checkout is dated 6 November 2026. Commit dates alon
 Before submitting:
 
 - Add the video URL and a fresh visible 0G inference request ID.
-- Supply team member names and Telegram/X contact.
+- Supply individual team member names and a Telegram/X contact where required by the submission form or sponsor. Team name and email are recorded above.
 - Confirm event participation category and pre-event work disclosure.
 - Submit through your ETHGlobal account and select the appropriate sponsor tracks.
 
