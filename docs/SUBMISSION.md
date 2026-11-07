@@ -9,6 +9,7 @@ Prepared 7 November 2026. This is a submission pack, not confirmation of prize e
 - Repository: https://github.com/bevatsal1122/memoryseal
 - Video: **TO ADD BY AUTHOR — under three minutes for the 0G submission**
 - Team name: **MemorySeal**.
+- Participation category: **From scratch**, confirmed by the author on 7 November 2026.
 - Contact email: **bevatsal1122@gmail.com**.
 - GitHub maintainer: bevatsal1122. Individual team member names and a Telegram/X contact are not yet supplied; do not infer them from the team name or email.
 
@@ -26,7 +27,7 @@ Show an actual write, its classification and inference request reference. Do not
 
 We do not claim independently verified request-bound private execution. See the dated [0G investigation](0G_INTEGRATION_README.md). The simulated payment screen does not qualify as autonomous compute earnings. No iAI-credit bonus, Physical AI or pay-for-itself claim is made.
 
-### Arkiv: Build on Arkiv
+### Arkiv: Build on Arkiv (from scratch)
 
 Memory lifecycle metadata is published as real Rabdi entities. A user-facing provenance observation reads those records back, and anyone can run the standalone creator-filtered query. Private memory text, salts and keys stay offchain. Arkiv gives reviewers an independently accessible data path rather than requiring access to our private database.
 
@@ -71,13 +72,12 @@ Arkiv transaction: [0xa200…403a](https://rabdi.explorer.arkiv.network/tx/0xa20
 
 ## Build provenance and final author tasks
 
-The earliest commit in this checkout is dated 6 November 2026. Commit dates alone do not prove that all work began at the event. **The author must confirm from-scratch versus Continuity registration and disclose any pre-event work.** Do not select an existing-project track merely because the repository already exists today.
+The author confirmed **from-scratch participation** on 7 November 2026. The earliest commit in this checkout is dated 6 November 2026; the category is recorded from the author's confirmation, not inferred from commit dates. Select Build with 0G Private Computer, Build on Arkiv (from scratch), and Best Use of ENSv2. Continuity-only tracks are not part of this submission.
 
 Before submitting:
 
 - Add the video URL and a fresh visible 0G inference request ID.
 - Supply individual team member names and a Telegram/X contact where required by the submission form or sponsor. Team name and email are recorded above.
-- Confirm event participation category and pre-event work disclosure.
 - Submit through your ETHGlobal account and select the appropriate sponsor tracks.
 
 The app, docs, source availability and test evidence can be prepared independently; the private ETHGlobal application and unknown team details cannot be completed by inventing values.
