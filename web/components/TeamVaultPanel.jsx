@@ -231,7 +231,13 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                 <div className="organization-selected-title"><span className="organization-avatar" aria-hidden="true">{org.name.slice(0,1).toUpperCase()}</span><div><h3>{org.name}</h3><span className="organization-role">{org.role}</span></div></div>
                 <div className="organization-stats"><span><b>{org.members.length}</b> collaborators</span><span><b>{org.agents.filter(a => !a.revoked).length}</b> active agents</span></div>
               </div>
-              <details className="organization-identity"><summary>Organization details</summary><p>Owner: {org.owner_address}</p><p>Membership version: {org.version}</p></details>
+              <details className="organization-identity">
+                <summary>Organization details</summary>
+                <dl className="organization-identity-grid">
+                  <div><dt>Owner wallet</dt><dd className="organization-owner-value"><code>{org.owner_address}</code><button type="button" disabled={busy} aria-label="Copy owner wallet address" onClick={() => run(async () => { await navigator.clipboard.writeText(org.owner_address); setNotice("Owner address copied."); })}>Copy</button></dd></div>
+                  <div><dt>Membership version</dt><dd><span className="organization-version">v{org.version}</span></dd></div>
+                </dl>
+              </details>
               <nav className="operation-tabs" aria-label="Team sections">{["members", "agents", "permissions"].map(tab => <button key={tab} aria-current={teamTab === tab ? "page" : undefined} onClick={() => setTeamTab(tab)}>{tab.charAt(0).toUpperCase()+tab.slice(1)}</button>)}</nav>
               {teamTab === "members" && <div className="organization-members">{org.members.length === 0 ? <p>No collaborators added yet.</p> : org.members.map(m => <div className="organization-member" key={m.address}><span className="organization-member-address">{m.address}</span><span className="organization-role">{m.role}</span></div>)}</div>}
               {org.role === "owner" && teamTab === "members" && (

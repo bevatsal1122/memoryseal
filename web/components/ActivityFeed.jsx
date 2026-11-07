@@ -21,18 +21,13 @@ function summary(e,d) {
   if(e.event_type==='onchain_transfer_observed')return 'The configured RPC reported a matching transfer.';
   if(e.event_type==='onchain_transfer_revert_observed')return 'The configured RPC reported a reverted transaction.';
   if(e.event_type.startsWith('capability_')&&d.operation)return `${pretty(d.operation)} · ${d.resource}`;
-  if(e.reason?.trim().startsWith('{'))return 'Recorded details available below.';
+  if(e.reason?.trim().startsWith('{'))return '';
   return e.reason || '';
 }
 function date(value) {const d=new Date(/[zZ]|[+-]\d\d:\d\d$/.test(value||'')?value:`${value}Z`);return Number.isNaN(d.getTime())?'':d.toLocaleString();}
 export default function ActivityFeed({events, agents, busy, showHeading = true, onMemory, onAgents, onPermissions, onEns, onTransfers}) {
   const [filter,setFilter]=useState('All');
-  const [copied,setCopied]=useState(null);
-  const [copyError,setCopyError]=useState(false);
   const visible=events.filter(e=>filter==='All'||group(e.event_type)===filter);
-  async function copy(e) {
-    try {await navigator.clipboard.writeText(JSON.stringify(e,null,2));setCopied(e.id);setCopyError(false);}catch {setCopyError(true);}
-  }
   return <div className="activity-feed">
     <div className="activity-feed-header">{showHeading && <h2>Recent activity</h2>}<span>{events.length} events</span></div>
     <nav className="activity-filters" aria-label="Filter activity">{['All','Memories','Agents','Permissions','ENS','Transfers'].map(value=><button key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{value}</button>)}</nav>
@@ -56,11 +51,6 @@ export default function ActivityFeed({events, agents, busy, showHeading = true, 
             {kind==='Transfers'&&<button disabled={busy} onClick={onTransfers}>Transfer controls ↗</button>}
             {tx&&<a href={tx} target="_blank" rel="noopener noreferrer">View transaction ↗</a>}
           </div>
-          <details className="activity-event-details"><summary>Event details</summary><dl><div><dt>Actor</dt><dd>{e.actor}</dd></div><div><dt>Resource</dt><dd>{e.resource||'—'}</dd></div><div><dt>Event ID</dt><dd>{e.id}</dd></div></dl>
-            {Object.keys(d).length>0&&<pre>{JSON.stringify(d,null,2)}</pre>}
-            <p>{e.reason}</p><button onClick={()=>copy(e)}>{copied===e.id?'Copied':'Copy event'}</button>
-            {copyError&&<p role="status">Copy unavailable. Select the details above.</p>}
-          </details>
         </div>
       </article>;
     })}

@@ -1,5 +1,6 @@
 "use client";
 import ActionNotice from "./ActionNotice";
+import SavedMemoryModal from "./SavedMemoryModal";
 
 import { useEffect, useState } from "react";
 import { parseUnits } from "viem";
@@ -23,6 +24,7 @@ export default function AgentWorkbench({ account, request, signal }) {
   const [parentId, setParentId] = useState("");
   const [attempt, setAttempt] = useState(null);
   const [written, setWritten] = useState(null);
+  const [showSaved, setShowSaved] = useState(false);
   const [savedDraft, setSavedDraft] = useState(null);
   const [tokenDecimals, setTokenDecimals] = useState(null);
   const [ack, setAck] = useState(null);
@@ -128,7 +130,7 @@ export default function AgentWorkbench({ account, request, signal }) {
     };
     setAttempt(body);
     const result = await call("POST", "/memory/write", body);
-    setWritten(result); setSavedDraft(body); setAttempt(null); setContent(""); setParentId(""); setAck(null); setAckId(null);
+    setWritten(result); setShowSaved(true); setSavedDraft(body); setAttempt(null); setContent(""); setParentId(""); setAck(null); setAckId(null);
   }
   async function read(offset = 0, scope = { agentId, namespace }) {
     const value = await call("POST", "/memory/read", {
@@ -296,15 +298,11 @@ export default function AgentWorkbench({ account, request, signal }) {
                 </div>
               )}
               {written && (
-                <div className="detail">
-                  <b role="status">{written.status === "accepted" ? "Memory saved" : "Saved — needs owner review"}</b>
-                  <details><summary>Additional proof (optional)</summary>
-                  <p>Optional acknowledgement · two wallet signatures.</p>
-                  <p>Memory ID: {written.id}</p>
-                  <p>
-                    Readable at write time:{" "}
-                    {written.lineage_eligible ? "yes" : "no"}
-                  </p>
+                <>
+                  <button type="button" className="saved-memory-reopen" onClick={() => setShowSaved(true)}>View saved memory</button>
+                  <SavedMemoryModal open={showSaved} onClose={() => setShowSaved(false)} written={written}>
+                  <h3>Additional proof <span>(optional)</span></h3>
+                  <p className="muted">Acknowledgement requires two wallet signatures.</p>
                   <button
                     disabled={busy || !!ack}
                     onClick={() =>
@@ -349,8 +347,8 @@ export default function AgentWorkbench({ account, request, signal }) {
                       Signed acknowledgement queued for publication.
                     </p>
                   )}
-                  </details>
-                </div>
+                  </SavedMemoryModal>
+                </>
               )}
             </article>
             <article className="operation-read">
