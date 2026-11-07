@@ -47,7 +47,7 @@ export default function ActivityFeed({events, agents, busy, showHeading = true, 
             {kind==='Memories'&&e.resource&&<button disabled={busy} onClick={()=>onMemory(e.resource)}>Open memory ↗</button>}
             {kind==='Agents'&&<button disabled={busy} onClick={onAgents}>Manage agents ↗</button>}
             {kind==='Permissions'&&<button disabled={busy} onClick={onPermissions}>Manage permissions ↗</button>}
-            {kind==='ENS'&&<><button disabled={busy} onClick={()=>onEns(agent,d)}>Manage ENS ↗</button><a href="https://explorer.ens.dev" target="_blank" rel="noopener noreferrer">ENS explorer ↗</a></>}
+            {kind==='ENS'&&<><button disabled={busy} onClick={()=>onEns(agent,d)}>Manage ENS ↗</button>{(d.name || agent?.ens_name) && <a href={`https://explorer.ens.dev/${encodeURIComponent(d.name || agent.ens_name)}`} target="_blank" rel="noopener noreferrer">ENS explorer ↗</a>}</>}
             {kind==='Transfers'&&<button disabled={busy} onClick={onTransfers}>Transfer controls ↗</button>}
             {tx&&<a href={tx} target="_blank" rel="noopener noreferrer">View transaction ↗</a>}
           </div>

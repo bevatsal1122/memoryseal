@@ -39,7 +39,7 @@ export default function AgentCard({ agent, capabilities, observation, busy, onCh
           {grants.length ? <ul>{grants.map(c => <li key={c.id}><b>{c.operation}</b><code>{c.resource}</code>{c.max_amount && <span>Limit: {c.max_amount} base units</span>}{c.expires_at && <span>Expires {new Date(/[Zz]|[+-]\d{2}:\d{2}$/.test(c.expires_at) ? c.expires_at : `${c.expires_at}Z`).toLocaleString()}</span>}</li>)}</ul> : <p>No active permissions.</p>}
         </div>
         <div className="inline">
-          {agent.ens_name && <a className="neo-button" href="https://explorer.ens.dev" target="_blank" rel="noopener noreferrer">ENS explorer <span aria-hidden="true">↗</span></a>}
+          {agent.ens_name && <a className="neo-button" href={`https://explorer.ens.dev/${encodeURIComponent(agent.ens_name)}`} target="_blank" rel="noopener noreferrer">ENS explorer <span aria-hidden="true">↗</span></a>}
           {observation?.error && <button disabled={busy} onClick={onCheckEns}>Retry ENS check</button>}
         </div>
       </div>
