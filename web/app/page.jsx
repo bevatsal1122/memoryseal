@@ -1,6 +1,7 @@
 "use client";
 
 import ConnectionStatus, { ConnectionDiagnostics } from "../components/ConnectionStatus";
+import CollectionInput from "../components/CollectionInput";
 import ActionNotice from "../components/ActionNotice";
 
 import { useEffect, useRef, useState } from "react";
@@ -379,6 +380,10 @@ function DashboardSession({ signal }) {
                   <span aria-hidden="true">↻</span>
                   <span>{account.slice(0, 6)}…{account.slice(-4)}</span>
                 </button>
+                <button className="refresh-button" disabled={busy} onClick={() => run(async () => {
+                  await window.ethereum.request({method: "wallet_requestPermissions", params: [{eth_accounts: {}}]});
+                  clearBrowserSessions(); await connect();
+                })}>Switch account</button>
                 <button
                   className="refresh-button"
                   disabled={busy}
@@ -386,10 +391,6 @@ function DashboardSession({ signal }) {
                 >
                   Sign out
                 </button>
-                <button className="refresh-button" disabled={busy} onClick={() => run(async () => {
-                  await window.ethereum.request({method: "wallet_requestPermissions", params: [{eth_accounts: {}}]});
-                  clearBrowserSessions(); await connect();
-                })}>Switch account</button>
 
               </div>
             </div>
@@ -609,7 +610,7 @@ function DashboardSession({ signal }) {
                             {data.agents.filter(a => !a.revoked).map(a => <option key={a.id} value={a.id}>{a.label || a.ens_name || a.signing_address}</option>)}
                           </select>
                         </div>
-                        <div className="permission-field"><label htmlFor="acceptance-namespace">Collection</label><input id="acceptance-namespace" name="namespace" required maxLength={200} placeholder="research" /></div>
+                        <div className="permission-field"><label htmlFor="acceptance-namespace">Collection</label><CollectionInput id="acceptance-namespace" name="namespace" required maxLength={200} placeholder="research" /></div>
                       </div>
                       <fieldset className="acceptance-choices"><legend>Acceptance mode</legend>
                         <div className="permission-fields">
@@ -663,7 +664,7 @@ function DashboardSession({ signal }) {
                           <select id="grant-operation" value={operation} onChange={e => setOperation(e.target.value)}><option value="write">Write</option><option value="read">Read</option><option value="transfer">Transfer</option></select>
                         </div>
                         <div className="permission-field"><label htmlFor="grant-resource">{operation === "transfer" ? "Asset" : "Collection"}</label>
-                          <input id="grant-resource" value={resource} onChange={e => setResource(e.target.value)} placeholder={operation === "transfer" ? "Asset identifier" : "research"} required />
+                          {operation === "transfer" ? <input id="grant-resource" value={resource} onChange={e => setResource(e.target.value)} placeholder="Asset identifier" required /> : <CollectionInput id="grant-resource" value={resource} onChange={e => setResource(e.target.value)} placeholder="research" required />}
                         </div>
                         <div className="permission-field"><label htmlFor="local-expiry">Expiry <span>(optional · local time)</span></label><input id="local-expiry" type="datetime-local" value={localExpiry} onChange={e => setLocalExpiry(e.target.value)} /></div>
                         {operation === "transfer" && <div className="permission-field permission-field-wide"><label htmlFor="grant-amount">Transfer limit <span>(base units)</span></label><input id="grant-amount" type="text" inputMode="numeric" pattern="[0-9]+" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" required /></div>}
@@ -720,7 +721,7 @@ function DashboardSession({ signal }) {
                   </div>
                   <div className="memory-filter-field">
                   <label htmlFor="search-namespace">Collection</label>
-                  <input
+                  <CollectionInput
                     id="search-namespace"
                     value={memoryFilter.namespace}
                     onChange={(e) =>

@@ -2215,3 +2215,12 @@ textarea:focus {
   .workspace .vault-identity-card > summary, .vault-collections-card > header { padding: 16px; font-size: 16px; }
   .vault-field-pair { grid-template-columns: minmax(0, 1fr); }
 }
+
+.workspace .collection-tag-input { min-height: 44px; width: 100%; padding: 6px 10px; border: 1.5px solid #777c70; background: white; display: flex; align-items: center; box-sizing: border-box; }
+.workspace .collection-tag-input:focus-within { border-color: var(--ink); }
+.collection-tag-value { display: flex; align-items: center; min-width: 0; max-width: 100%; width: 100%; }
+.workspace .collection-tag-input .collection-tag-value > input { min-height: 28px; height: 28px; padding: 0; margin: 0; border: 0; outline: none; box-shadow: none; background: transparent; min-width: 0; max-width: 100%; font-size: 13px; flex: 1; }
+.workspace .collection-tag-input.has-tag .collection-tag-value { width: auto; padding: 3px 7px 3px 9px; border: 1px solid var(--ink); background: var(--lavender); gap: 6px; }
+.workspace .collection-tag-input.has-tag input { flex: 0 1 auto; min-height: 22px; height: 22px; font: 700 12px monospace; text-overflow: ellipsis; cursor: text; }
+.workspace .collection-tag-input button.collection-tag-remove { display: grid; place-items: center; flex: 0 0 22px; min-height: 22px; height: 22px; width: 22px; padding: 0; margin: 0; border: 0; box-shadow: none; background: transparent; font-size: 18px; line-height: 1; transform: none; }
+.workspace .collection-tag-input button.collection-tag-remove:hover { background: #fffef9; box-shadow: none; transform: none; }

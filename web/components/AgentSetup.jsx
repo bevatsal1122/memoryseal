@@ -1,4 +1,5 @@
 "use client";
+import CollectionInput from "./CollectionInput";
 import ActionNotice from "./ActionNotice";
 import PolicyChainSelect from "./PolicyChainSelect";
 import { useState } from "react";
@@ -52,7 +53,7 @@ export default function AgentSetup({ account, version, request, onComplete }) {
         <div className="setup-fields">
           <div className="setup-field">
             <label htmlFor="setup-collection">Collection</label>
-            <input id="setup-collection" name="namespace" placeholder="research" required maxLength={128} />
+            <CollectionInput id="setup-collection" name="namespace" placeholder="research" required maxLength={128} />
 
           </div>
           <div className="setup-field">
