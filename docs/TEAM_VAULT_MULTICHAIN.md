@@ -10,12 +10,12 @@ Implemented for the current development gateway and dashboard on 6 November 2026
 | TypeScript SDK | Typed ESM package with wallet signing, memory operations, teams, chain observations and client crypto | Used by the new team/vault controls |
 | Client-held encryption | Opaque encrypted records, recipient key envelopes, signed key manifests, local commitment verification | Encrypted vault tab: encrypted backups, public identity registration, creation, writing, reading and release |
 | Online namespace-key rotation | Atomic key-version changes, stale-write rejection, resumable per-record compare-and-swap migration | Rotate, migrate next batch, check remaining records |
-| Multiple EVM chains | Validated per-chain RPC/registry/executor configuration; request-scoped receipt checks; agent memory-policy chain binding | Configured deployment selectors in Integrations and Agent console |
+| Multiple EVM chains | Validated per-chain RPC/registry/executor configuration; request-scoped receipt checks; agent memory-policy chain binding | Configured deployment selectors in Settings and Playground |
 | Vault provenance | Separate outbox using existing conservative publication/reconciliation; public metadata whitelist | Per-record lifecycle events and publish/reconcile/query controls |
 
 ## Upgrade and run
 
-Keep the current `.env`, `.demo.env`, SQLite data and encryption key. Stop old gateway/outbox processes and take a consistent backup before upgrade. Schema **10** adds tables for organizations, client encryption identities, namespace key epochs, encrypted records and their outbox; it adds `agents.policy_chain_id`. No historical plaintext is automatically downloaded/re-encrypted, no wallet keys change, and no existing grant is silently converted into a team role.
+Keep the current private configuration, SQLite data and encryption key. Stop old gateway/outbox processes and take a consistent backup before upgrade. The current schema is **14**. Organization and vault tables were introduced in schema 10, including encryption identities, namespace key epochs, encrypted records, their outbox and `agents.policy_chain_id`. Startup applies supported migrations in order. No historical plaintext is automatically downloaded/re-encrypted, no wallet keys change, and no existing grant is silently converted into a team role.
 
 ```sh
 npm ci --prefix sdk/typescript

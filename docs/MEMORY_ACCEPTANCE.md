@@ -21,7 +21,7 @@ Existing quarantined memories are not retroactively accepted. Review them indivi
 
 Switching a rule back to Strict withholds unreviewed Standard-accepted memories from agent reads (including their dependent descendants), without rewriting historical stored status. Revoking the writer also withholds these automatically accepted records. Explicit owner review remains a separate decision. Restoring Standard can make previously automatically accepted records eligible again when all checks pass.
 
-Strict retains the deployment's existing verification policy; the older operator `allow_unbound_inference` setting is unchanged. On the current deployment it is false. Standard does not bypass a separately enabled requirement for connection attestation.
+Strict retains the deployment's existing verification policy; the older operator `allow_unbound_inference` setting is unchanged. The configuration default is false; consult the operator configuration for a particular deployment. Standard does not bypass a separately enabled requirement for connection attestation.
 
 ## API and SDKs
 
@@ -43,7 +43,7 @@ Memory metadata exposes `auto_accepted`, and the website labels records accepted
 
 ## Deployment
 
-Deploy backend and frontend. Backend startup migrates SQLite to schema 12, adding the rule table and an automatic-acceptance marker that defaults false for existing records. Back up the persistent database before deployment; older gateways reject this newer schema. No existing workspace is opted into Standard automatically.
+Deploy backend and frontend. Backend startup applies supported migrations through the current schema 14. Acceptance rules were introduced in schema 12 with an automatic-acceptance marker that defaults false for existing records. Back up the persistent database before deployment; older gateways reject this newer schema. No existing workspace is opted into Standard automatically.
 
 ## Implementation
 

@@ -78,7 +78,7 @@ node --test integrations/ens/test/*.test.mjs
 .venv/bin/python scripts/test_typescript_sdk.py
 ```
 
-The SDK runner starts an isolated gateway; network/contract tests may require optional configuration. For contract tests, install `.[dev,contract-test]` and compile artifacts with `npm ci --prefix contracts` followed by `node contracts/scripts/compile.mjs --with-test-token`. Use an isolated checkout for `npm run build --prefix web` if a development server is active.
+The SDK runner starts an isolated gateway; network/contract tests may require optional configuration. For contract tests, install `.[dev,contract-test]` and compile artifacts with `npm ci --prefix contracts` followed by `(cd contracts && node scripts/compile.mjs --with-test-token)`. Use an isolated checkout for `npm run build --prefix web` if a development server is active.
 
 ## Troubleshooting
 

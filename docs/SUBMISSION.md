@@ -5,7 +5,6 @@ Prepared 7 November 2026. This is a submission pack, not confirmation of prize e
 ## Links
 
 - Live app: https://www.memoryseal.work
-- Direct demo: https://www.memoryseal.work/#demo
 - Repository: https://github.com/bevatsal1122/memoryseal
 - Video: **TO ADD BY AUTHOR — under three minutes for the 0G submission**
 - Team name: **MemorySeal**.
@@ -25,7 +24,7 @@ MemorySeal gives AI agents shared memory without allowing remembered text to bec
 
 Show an actual write, its classification and inference request reference. Do not use a local memory UUID or transaction hash as a substitute for the inference request ID. The UI exposes inference details and the classifier extracts router request_id and response_key when supplied. Capture a fresh nonempty reference in the video; if the provider omits it, that evidence item remains outstanding.
 
-We do not claim independently verified request-bound private execution. See the dated [0G investigation](0G_INTEGRATION_README.md). The simulated payment screen does not qualify as autonomous compute earnings. No iAI-credit bonus, Physical AI or pay-for-itself claim is made.
+We do not claim independently verified request-bound private execution. See the dated [0G investigation](0G_INTEGRATION_README.md). Local transfer permission checks do not represent autonomous compute earnings. No iAI-credit bonus, Physical AI or pay-for-itself claim is made.
 
 ### Arkiv: Build on Arkiv (from scratch)
 
@@ -41,7 +40,7 @@ These are platform-managed names and resolvers, not a claim that each agent cont
 
 ## Judge walkthrough / video outline (about 2 minutes 45 seconds)
 
-1. **0:00–0:20 — Problem.** Open the direct demo. Explain how malicious source text can be mistaken for permission; label payment decisions as simulations.
+1. **0:00–0:20 — Problem.** Open the workspace and explain how malicious source text can be mistaken for permission. Introduce the separate owner-controlled permission rules.
 2. **0:20–0:55 — ENS.** Register an agent using a dedicated test signing address. Show the completed subname, resolution match and real Sepolia transaction. Registration may take longer than the video: record it beforehand and disclose any edit/time compression.
 3. **0:55–1:35 — 0G.** Give the agent collection write permission, connect its wallet, and submit synthetic content claiming an unauthorized spending approval. Show the actual classifier result and request ID. Explain that owner policy, not AI confidence, decides authority.
 4. **1:35–2:10 — Arkiv.** Open that memory's provenance. Wait for publication, open the transaction and perform the record observation. Show the independent CLI query as well. Uncertain events must be reconciled, not described as confirmed.
@@ -61,7 +60,7 @@ The owner and agent signing accounts can be different. A new owner workspace ini
 | That agent's signing address | 0x3f0bfca263b79737864fb891400680c767234e78 |
 | MemoryPolicyRegistry | Sepolia: 0xcC79334441497eA501CaB95E2D3B2F7c52c74437 |
 | ProtectedTransfer | Sepolia: 0x46065CA936c7813bD2D560F0CE7C7a25A38d05Ec |
-| Demo test token | Sepolia: 0x6988ec52814125689586C8f2C62F93993CE82E3B |
+| Test token | Sepolia: 0x6988ec52814125689586C8f2C62F93993CE82E3B |
 | Arkiv publisher | Rabdi (7794095): 0x80ce7202b4dab0653a410605f307ee5cd796db64 |
 
 [ENS registry explorer](https://sepolia.etherscan.io/address/0x828AfCc3D80C65C1620495e1E0EAF5c980D8F1C8) · [Policy registry](https://sepolia.etherscan.io/address/0xcC79334441497eA501CaB95E2D3B2F7c52c74437) · [Protected executor](https://sepolia.etherscan.io/address/0x46065CA936c7813bD2D560F0CE7C7a25A38d05Ec).
