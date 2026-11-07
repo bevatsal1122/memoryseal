@@ -1,4 +1,6 @@
 "use client";
+
+import ConnectionStatus, { ConnectionDiagnostics } from "../components/ConnectionStatus";
 import ActionNotice from "../components/ActionNotice";
 
 import { useEffect, useRef, useState } from "react";
@@ -8,6 +10,7 @@ import Landing from "../components/design/Landing";
 import Brand from "../components/design/Brand";
 import NavIcon from "../components/design/NavIcon";
 import MemoryMap from "../components/MemoryMap";
+import ActivityFeed from "../components/ActivityFeed";
 import AgentSetup from "../components/AgentSetup";
 import AgentCard from "../components/AgentCard";
 import MemoryEvidence from "../components/MemoryProof";
@@ -51,42 +54,6 @@ import {
 
 const api = process.env.NEXT_PUBLIC_GATEWAY_URL || "http://localhost:8000";
 const audience = process.env.NEXT_PUBLIC_GATEWAY_AUDIENCE || "memoryseal-local";
-
-function eventDescription(event) {
-  if (event.event_type === "namespace_access_denied")
-    return `${event.reason} · namespace ${event.resource} · agent ${event.actor}`;
-  if (event.event_type === "transfer_simulated" && event.details) {
-    const d = event.details;
-    const limits =
-      d.capabilities
-        .map(
-          (cap) =>
-            `${cap.max_amount ?? "none"} base units${cap.expires_at ? ` (expires ${cap.expires_at})` : ""}`,
-        )
-        .join(", ") || "no unrevoked grant";
-    return `Simulation · agent ${d.agent_id} · requested ${d.amount} ${d.asset} · limit ${limits} · requested policy ${d.requested_policy_version} · ${event.reason}`;
-  }
-  if (
-    (event.event_type === "capability_granted" ||
-      event.event_type === "capability_revoked") &&
-    event.details
-  ) {
-    const d = event.details;
-    return `${event.reason} · agent ${d.agent_id} · ${d.operation} ${d.resource}${d.max_amount === null ? "" : ` · limit ${d.max_amount} base units`}${d.expires_at ? ` · expires ${d.expires_at}` : ""}`;
-  }
-  if (
-    event.event_type === "onchain_transfer_observed" ||
-    event.event_type === "onchain_transfer_revert_observed"
-  ) {
-    try {
-      const detail = JSON.parse(event.reason);
-      return `RPC observation${event.event_type === "onchain_transfer_revert_observed" ? " · reverted, cause unknown" : " · transfer event matched"} · ${detail.amount} base units · token ${detail.token} · block ${detail.block_number}`;
-    } catch {
-      return "RPC observation";
-    }
-  }
-  return event.reason;
-}
 
 export default function Dashboard() {
   const [session, setSession] = useState(0);
@@ -374,7 +341,9 @@ function DashboardSession({ signal }) {
       ) : (
         <>
           <aside className="sidebar">
-            <Brand />
+            <button className="sidebar-home" type="button" aria-label="MemorySeal overview" onClick={() => setView("overview")}>
+              <Brand />
+            </button>
             <nav className="side-nav" aria-label="Workspace navigation">
               {nav.map(([id, label]) => (
                 <button
@@ -404,9 +373,12 @@ function DashboardSession({ signal }) {
           >
             <div className="workspace-topbar">
               <div className="topbar-actions">
-                <span className="wallet-chip">
-                  {account.slice(0, 6)}…{account.slice(-4)}
-                </span>
+                <button className="refresh-button wallet-refresh" disabled={busy}
+                  title={`Refresh workspace · ${account}`} aria-label={`Refresh workspace for ${account}`} aria-busy={busy}
+                  onClick={() => run(() => refresh(account))}>
+                  <span aria-hidden="true">↻</span>
+                  <span>{account.slice(0, 6)}…{account.slice(-4)}</span>
+                </button>
                 <button
                   className="refresh-button"
                   disabled={busy}
@@ -418,13 +390,7 @@ function DashboardSession({ signal }) {
                   await window.ethereum.request({method: "wallet_requestPermissions", params: [{eth_accounts: {}}]});
                   clearBrowserSessions(); await connect();
                 })}>Switch account</button>
-                <button
-                  className="refresh-button"
-                  disabled={busy}
-                  onClick={() => run(() => refresh(account))}
-                >
-                  {busy ? "Loading…" : "↻  Refresh"}
-                </button>
+
               </div>
             </div>
             <ActionNotice message={error} onClose={() => setError("")} />
@@ -436,6 +402,7 @@ function DashboardSession({ signal }) {
                 </h1>
 
               </div>
+              {view === "overview" && <WorkspaceGuide onNavigate={setView} />}
             </div>
 
             <div hidden={view !== "teams" && view !== "vault"}>
@@ -453,12 +420,6 @@ function DashboardSession({ signal }) {
                 signal={signal}
               />
             </div>
-            {view === "overview" && (
-              <WorkspaceGuide
-                agents={activeAgents}
-                onNavigate={setView}
-              />
-            )}
             {view === "settings" && (
               <nav
                 className="integration-tabs"
@@ -476,30 +437,20 @@ function DashboardSession({ signal }) {
                     "Onchain policies",
                     "Limits, allowances and deployments",
                   ],
-                ].map(([id, label, description]) => (
+                ].map(([id, label]) => (
                   <button
                     key={id}
                     aria-current={integrationTab === id ? "page" : undefined}
                     onClick={() => setIntegrationTab(id)}
                   >
                     <b>{label}</b>
-                    <small>{description}</small>
                   </button>
                 ))}
               </nav>
             )}
             <section className="panel-setup">
-              <h2>Connections</h2>
-
-              {integrationReadiness && <div className="connection-summary">
-                <p>Proof publication: {data.summary?.auto_publish ? "Automatic" : "Manual"}</p>
-                <p>ENS: {integrationReadiness.ens_sepolia_configured ? "Configured" : "See diagnostics"}</p>
-                <p>Onchain deployment: {integrationReadiness.onchain_registry ? "Configured" : "Not configured"}</p>
-              </div>}
-              <details><summary>Connection diagnostics</summary>
-              <button
-                disabled={busy}
-                onClick={() =>
+              <ConnectionStatus readiness={integrationReadiness} automatic={data.summary?.auto_publish} busy={busy}
+                onRefresh={() =>
                   run(async () => {
                     const ready = await request(
                       account,
@@ -516,70 +467,9 @@ function DashboardSession({ signal }) {
                     if (!allowanceExecutor)
                       setAllowanceExecutor(ready.onchain_executor || "");
                   })
-                }
-              >
-                Check configuration
-              </button>
-              {integrationReadiness && (
-                <div className="detail">
-                  <p>
-                    ENS Sepolia:{" "}
-                    {integrationReadiness.ens_sepolia_configured
-                      ? "configured"
-                      : "not configured"}{" "}
-                    · 0G router:{" "}
-                    {integrationReadiness.zero_g_router_configured
-                      ? "configured"
-                      : "not configured"}
-                  </p>
-                  {integrationReadiness.connection_attestation_required ? (
-                    <p>
-                      Gateway connection check required · verifier{" "}
-                      {integrationReadiness.connection_attestation_available
-                        ? "configured"
-                        : "not configured"}
-                      . Availability does not prove a successful check.
-                    </p>
-                  ) : (
-                    <p>
-                      Gateway connection check disabled. Inference can send
-                      content without this pre-send verification; use only
-                      non-sensitive test data.
-                    </p>
-                  )}
-                  <p>
-                    Inference request binding:{" "}
-                    {integrationReadiness.request_binding_verification_supported
-                      ? "supported"
-                      : "not verified"}
-                    .{" "}
-                    {integrationReadiness.unbound_inference_allowed
-                      ? "Test-only compatibility is enabled; unbound results can become agent-readable."
-                      : "Unbound results are withheld unless the owner explicitly reviews an eligible observation for sharing."}
-                  </p>
-                  {integrationReadiness.zero_g_experimental_bridge && (
-                    <p>
-                      Experimental 0G bridge enabled. Results remain unverified
-                      and quarantined; this check does not validate the
-                      executable or provider.
-                    </p>
-                  )}
-                  <p>
-                    Arkiv publisher key:{" "}
-                    {integrationReadiness.arkiv_publisher_configured
-                      ? "present"
-                      : "not configured"}{" "}
-                    · Sepolia action observer:{" "}
-                    {integrationReadiness.onchain_observer_configured
-                      ? "configured"
-                      : "not configured"}
-                  </p>
-                  <small>
-                    Configuration can change after this check. The publisher
-                    key’s validity and funding are not checked.
-                  </small>
-                </div>
-              )}
+                } />
+              <details className="settings-diagnostics"><summary>Diagnostics & deployment checks</summary>
+              <ConnectionDiagnostics readiness={integrationReadiness} />
               <button
                 disabled={busy}
                 onClick={() =>
@@ -691,18 +581,11 @@ function DashboardSession({ signal }) {
                 )}
                 <AgentSetup account={account} version={data.version} request={request} onComplete={() => refresh(account)} />
               </section>
-              <section className="panel-permissions">
-                <h2>Memory acceptance</h2>
-                <p className="muted">
-                  Standard accepts eligible low-risk observations, including unverified results. Risky content stays withheld.
-                </p>
-                {(data.acceptanceRules || []).map((rule) => (
-                  <p key={`${rule.agent_id}:${rule.namespace}`}>
-                    {data.agents.find((agent) => agent.id === rule.agent_id)?.ens_name || rule.agent_id}
-                    {" · "}{rule.namespace}{" · "}{rule.mode}
-                  </p>
-                ))}
-                <form onSubmit={(event) => {
+              <section className="panel-permissions permission-workspace">
+                <div className="permission-layout">
+                  <article className="permission-card">
+                    <header className="permission-card-header"><span>01</span><h2>Memory acceptance</h2></header>
+                <form className="permission-form" onSubmit={(event) => {
                   event.preventDefault();
                   const form = event.currentTarget;
                   const values = new FormData(form);
@@ -717,34 +600,33 @@ function DashboardSession({ signal }) {
                     form.reset();
                   });
                 }}>
-                  <label htmlFor="acceptance-agent">Agent</label>
-                  <select id="acceptance-agent" name="agent_id" required defaultValue="">
-                    <option value="" disabled>Choose agent</option>
-                    {data.agents.filter((agent) => !agent.revoked).map((agent) => (
-                      <option key={agent.id} value={agent.id}>{agent.label || agent.ens_name || agent.signing_address}</option>
-                    ))}
-                  </select>
-                  <label htmlFor="acceptance-namespace">Collection</label>
-                  <input id="acceptance-namespace" name="namespace" required maxLength={200} placeholder="research" />
-                  <label htmlFor="acceptance-mode">Acceptance mode</label>
-                  <select id="acceptance-mode" name="mode" defaultValue="strict">
-                    <option value="strict">Strict — require existing verification rules</option>
-                    <option value="standard">Standard — allow low-risk unverified observations</option>
-                  </select>
-                  <p className="muted">Existing quarantined records still need review. Switching to Strict can withhold earlier auto-accepted records.</p>
-                  <button disabled={busy}>Sign acceptance policy</button>
-                </form>
-                <h2>Permissions</h2>
 
-                {data.capabilities.length === 0 && <p>No permissions yet. Add an agent to get started.</p>}
-                {data.agents.filter(a => data.capabilities.some(c => c.agent_id === a.id)).map(a => <details key={a.id} className="permission-group">
-                  <summary>{a.label || a.ens_name || a.signing_address} · {data.capabilities.filter(c => c.agent_id === a.id && capabilityActive(c)).length} active permissions</summary>
-                  {data.capabilities.filter(c => c.agent_id === a.id).map(c => <div className="row" key={c.id}>
-                    <div><b>{c.operation} · {c.resource}</b><small>{c.max_amount ? `Limit: ${c.max_amount} base units · ` : ""}{c.expires_at ? `Expires ${new Date(c.expires_at).toLocaleString()}` : "No expiry"}</small></div>
-                    {capabilityActive(c) ? <button disabled={busy} onClick={() => run(async () => {await request(account,"POST",`/capabilities/${c.id}/revoke`,{}); await refresh(account);})}>Revoke</button> : <small>{c.revoked ? "Revoked" : "Expired"}</small>}
-                  </div>)}
-                </details>)}
-                <form
+                    <fieldset disabled={busy}>
+                      <div className="permission-fields">
+                        <div className="permission-field"><label htmlFor="acceptance-agent">Agent</label>
+                          <select id="acceptance-agent" name="agent_id" required defaultValue="">
+                            <option value="" disabled>Choose agent</option>
+                            {data.agents.filter(a => !a.revoked).map(a => <option key={a.id} value={a.id}>{a.label || a.ens_name || a.signing_address}</option>)}
+                          </select>
+                        </div>
+                        <div className="permission-field"><label htmlFor="acceptance-namespace">Collection</label><input id="acceptance-namespace" name="namespace" required maxLength={200} placeholder="research" /></div>
+                      </div>
+                      <fieldset className="acceptance-choices"><legend>Acceptance mode</legend>
+                        <div className="permission-fields">
+                          <label className="acceptance-choice"><input type="radio" name="mode" value="strict" defaultChecked /><span><b>Strict</b><small>Existing verification rules</small></span></label>
+                          <label className="acceptance-choice"><input type="radio" name="mode" value="standard" /><span><b>Standard</b><small>Low-risk, including unverified</small></span></label>
+                        </div>
+                      </fieldset>
+                    </fieldset>
+                    <div className="permission-form-footer"><button disabled={busy}>Sign acceptance policy <span aria-hidden="true">↗</span></button></div>
+                  </form>
+                  {(data.acceptanceRules || []).length > 0 && <details className="permission-saved-rules"><summary>Saved rules <span>{data.acceptanceRules.length}</span></summary>
+                    {data.acceptanceRules.map(rule => <div className="saved-rule" key={`${rule.agent_id}:${rule.namespace}`}><div><b>{data.agents.find(a => a.id === rule.agent_id)?.label || data.agents.find(a => a.id === rule.agent_id)?.ens_name || rule.agent_id}</b><code>{rule.namespace}</code></div><span className="pill">{rule.mode}</span></div>)}
+                  </details>}
+                </article>
+                <article className="permission-card">
+                  <header className="permission-card-header"><span>02</span><h2>Add permission</h2></header>
+                <form className="permission-form"
                   onSubmit={(e) => {
                     e.preventDefault();
                     run(async () => {
@@ -768,61 +650,43 @@ function DashboardSession({ signal }) {
                     });
                   }}
                 >
-                  <label htmlFor="grant-agent">Add permission</label>
-                  <select
-                    id="grant-agent"
-                    required
-                    value={agent}
-                    onChange={(e) => setAgent(e.target.value)}
-                  >
-                    <option value="">Choose agent</option>
-                    {data.agents.map((a) => (
-                      <option value={a.id} key={a.id}>
-                        {a.label || a.ens_name || a.signing_address}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="inline">
-                    <select
-                      value={operation}
-                      onChange={(e) => setOperation(e.target.value)}
-                      aria-label="Operation"
-                    >
-                      <option value="write">Write</option>
-                      <option value="read">Read</option>
-                      <option value="transfer">Transfer</option>
-                    </select>
-                    <input
-                      value={resource}
-                      onChange={(e) => setResource(e.target.value)}
-                      placeholder="Namespace or asset"
-                      aria-label="Namespace or asset"
-                      required
-                    />
+
+                    <fieldset disabled={busy}>
+                      <div className="permission-fields">
+                        <div className="permission-field"><label htmlFor="grant-agent">Agent</label>
+                          <select id="grant-agent" required value={agent} onChange={e => setAgent(e.target.value)}>
+                            <option value="">Choose agent</option>
+                            {data.agents.filter(a => !a.revoked).map(a => <option value={a.id} key={a.id}>{a.label || a.ens_name || a.signing_address}</option>)}
+                          </select>
+                        </div>
+                        <div className="permission-field"><label htmlFor="grant-operation">Action</label>
+                          <select id="grant-operation" value={operation} onChange={e => setOperation(e.target.value)}><option value="write">Write</option><option value="read">Read</option><option value="transfer">Transfer</option></select>
+                        </div>
+                        <div className="permission-field"><label htmlFor="grant-resource">{operation === "transfer" ? "Asset" : "Collection"}</label>
+                          <input id="grant-resource" value={resource} onChange={e => setResource(e.target.value)} placeholder={operation === "transfer" ? "Asset identifier" : "research"} required />
+                        </div>
+                        <div className="permission-field"><label htmlFor="local-expiry">Expiry <span>(optional · local time)</span></label><input id="local-expiry" type="datetime-local" value={localExpiry} onChange={e => setLocalExpiry(e.target.value)} /></div>
+                        {operation === "transfer" && <div className="permission-field permission-field-wide"><label htmlFor="grant-amount">Transfer limit <span>(base units)</span></label><input id="grant-amount" type="text" inputMode="numeric" pattern="[0-9]+" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" required /></div>}
+                      </div>
+                    </fieldset>
+                    <div className="permission-form-footer"><button disabled={busy}>Save permission <span aria-hidden="true">↗</span></button></div>
+                  </form>
+                </article>
+                </div>
+                <article className="permission-card permission-current">
+                  <header className="permission-card-header"><span>03</span><h2>Current permissions</h2><span className="permission-total">{data.capabilities.filter(c => capabilityActive(c) && data.agents.some(a => a.id === c.agent_id && !a.revoked)).length} active</span></header>
+                  <div className="permission-current-body">
+                  {data.capabilities.length === 0 && <div className="permission-empty"><span aria-hidden="true">⊞</span><p>No permissions yet.</p></div>}
+                  {data.agents.filter(a => data.capabilities.some(c => c.agent_id === a.id)).map(a => <details key={a.id} className="permission-group">
+                    <summary><span>{a.label || a.ens_name || a.signing_address}</span><span className="permission-group-count">{a.revoked ? "Agent revoked" : `${data.capabilities.filter(c => c.agent_id === a.id && capabilityActive(c)).length} active`}</span></summary>
+                    <div className="permission-grant-list">{data.capabilities.filter(c => c.agent_id === a.id).map(c => <div className="permission-grant" key={c.id}>
+                      <span className="permission-action">{c.operation}</span>
+                      <div className="permission-grant-info"><code>{c.resource}</code><small>{c.max_amount ? `Limit: ${c.max_amount} base units · ` : ""}{c.expires_at ? `Expires ${new Date(/[Zz]|[+-]\d{2}:\d{2}$/.test(c.expires_at) ? c.expires_at : `${c.expires_at}Z`).toLocaleString()}` : "No expiry"}</small></div>
+                      {capabilityActive(c) ? <button className="permission-revoke" disabled={busy} onClick={() => run(async () => {await request(account,"POST",`/capabilities/${c.id}/revoke`,{}); await refresh(account);})}>Revoke</button> : <span className="pill">{c.revoked ? "Revoked" : "Expired"}</span>}
+                    </div>)}</div>
+                  </details>)}
                   </div>
-                  {operation === "transfer" && (
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]+"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="Limit in base units"
-                      aria-label="Limit in base units"
-                      required
-                    />
-                  )}
-                  <label htmlFor="local-expiry">
-                    Expiry (optional, local time)
-                  </label>
-                  <input
-                    id="local-expiry"
-                    type="datetime-local"
-                    value={localExpiry}
-                    onChange={(e) => setLocalExpiry(e.target.value)}
-                  />
-                  <button disabled={busy}>Save permission</button>
-                </form>
+                </article>
               </section>
               <section className="panel-memories">
                 <h2>Memories</h2>
@@ -1170,8 +1034,8 @@ function DashboardSession({ signal }) {
                 )}
               </section>
               <section className="panel-ens">
-                <details><summary>Advanced ENS management</summary>
-                <h2>Agent name record</h2>
+                <h2>Agent names</h2>
+                <details className="settings-task"><summary>Manage ENS records & ownership</summary>
                 <p className="muted">
                   Sets an address record on the parent resolver; does not create an owned subname.
                 </p>
@@ -1620,8 +1484,8 @@ function DashboardSession({ signal }) {
               </details>
               </section>
               <section className="panel-onchain">
-                <details><summary>Advanced onchain permissions and receipts</summary>
-                <h2>Protected transfers</h2>
+                <h2>Onchain policies</h2>
+                <details className="settings-task"><summary>Transfer limits & deployment</summary>
                 <p className="muted">
                   Onchain limits are separate from workspace permissions.
                 </p>
@@ -1885,6 +1749,8 @@ function DashboardSession({ signal }) {
                     </>
                   )}
                 </div>
+                </details>
+                <details className="settings-task"><summary>Token allowances</summary>
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -2010,6 +1876,8 @@ function DashboardSession({ signal }) {
                     </small>
                   </div>
                 )}
+                </details>
+                <details className="settings-task"><summary>Memory read & write access</summary>
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -2110,6 +1978,8 @@ function DashboardSession({ signal }) {
                     </button>
                   </div>
                 </form>
+                </details>
+                <details className="settings-task"><summary>Verify an owner grant</summary>
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -2206,6 +2076,8 @@ function DashboardSession({ signal }) {
                     </div>
                   )}
                 </form>
+                </details>
+                <details className="settings-task"><summary>Verify a transfer receipt</summary>
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -2355,22 +2227,13 @@ function DashboardSession({ signal }) {
               </details>
               </section>
               <section className="panel-activity">
-                <h2>Decision trail</h2>
-                {data.events.length === 0 ? (
-                  <p className="muted">No activity yet.</p>
-                ) : (
-                  data.events.map((e) => (
-                    <div className="row" key={e.id}>
-                      <div>
-                        <b>{e.event_type.replaceAll("_", " ")}</b>
-                        <small>
-                          {eventDescription(e)} · policy {e.policy_version}
-                        </small>
-                      </div>
-                      <span className="pill">{e.decision}</span>
-                    </div>
-                  ))
-                )}
+                <ActivityFeed events={data.events} agents={data.agents} busy={busy} showHeading={view !== "activity"}
+                  onMemory={id => {setMemoryFilter({memoryId: id}); setView("memories");}}
+                  onAgents={() => setView("agents")}
+                  onPermissions={() => setView("permissions")}
+                  onEns={(agent, info) => {if (agent) setEnsAgent(agent.signing_address); if (typeof info.name === "string" && info.name.includes(".")) {const [label, ...parent] = info.name.split("."); setEnsLabel(label); setEnsParent(parent.join("."));} setIntegrationTab("names"); setView("settings");}}
+                  onTransfers={() => {setIntegrationTab("policies"); setView("settings");}}
+                />
               </section>
             </div>
           </div>

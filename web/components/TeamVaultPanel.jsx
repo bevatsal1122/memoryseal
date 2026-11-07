@@ -50,6 +50,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
   const [pinConfirmed, setPinConfirmed] = useState(false);
   const [setupRegistered, setSetupRegistered] = useState(false);
   const [teamTab, setTeamTab] = useState("members");
+  const [teamsLoaded, setTeamsLoaded] = useState(false);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
@@ -90,6 +91,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [pending, identity, backedUp]);
+  const [vaultSetupMode, setVaultSetupMode] = useState("create");
   const [pendingKeyStale, setPendingKeyStale] = useState(false);
   const [provenance, setProvenance] = useState({});
   const scope = scopes.find((s) => s.id === scopeId);
@@ -122,7 +124,10 @@ export default function TeamVaultPanel({ account, signal, mode }) {
   async function loadOrgs() {
     const list = (await sdk.organizations()).organizations;
     setOrgs(list);
-    if (list.length === 1 || (org && list.some(o => o.id === org.id))) await loadOrg(org?.id || list[0].id);
+    setTeamsLoaded(true);
+    const current = list.find(o => o.id === org?.id);
+    if (current || list.length === 1) await loadOrg(current?.id || list[0].id);
+    else setOrg(null);
   }
   async function loadOrg(id) {
     setOrg(await sdk.organization(id));
@@ -200,14 +205,7 @@ export default function TeamVaultPanel({ account, signal, mode }) {
     setNext(page.next_after);
   }
   return (
-    <section className="agent-workbench">
-      <div className="section-head">
-        <h2>
-          {mode === "teams"
-            ? "Your team"
-            : "Private vault"}
-        </h2>
-      </div>
+    <section className={`agent-workbench ${mode === "teams" ? "organization-workspace" : "vault-workspace"}`}>
       <ActionNotice message={error} onClose={() => setError("")} />
       {notice && (
         <p role="status" className="detail">
@@ -217,58 +215,25 @@ export default function TeamVaultPanel({ account, signal, mode }) {
       {mode === "teams" ? (
         <>
 
-          <div className="inline">
-            <input
-              aria-label="Team name"
-              placeholder="Team name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <button
-              disabled={busy || !name}
-              onClick={() =>
-                run(async () => {
-                  await sdk.createOrganization(name);
-                  await loadOrgs();
-                })
-              }
-            >
-              Create team
-            </button>
-            <button disabled={busy} onClick={() => run(loadOrgs)}>
-              Refresh teams
-            </button>
-          </div>
-          <label>
-            Organization
-            <select
-              value={org?.id || ""}
-              onChange={(e) => run(() => loadOrg(e.target.value))}
-            >
-              <option value="">Choose organization</option>
-              {orgs.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name} · {o.role}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="organization-toolbar"><div><span className="organization-eyebrow">WORKSPACE DIRECTORY</span><h2>Your organizations</h2></div><button className="organization-refresh" disabled={busy} onClick={() => run(loadOrgs)} aria-label="Refresh organizations">↻ Refresh</button></div>
+          {!teamsLoaded && <p role="status">{busy ? "Loading organizations…" : "Organizations could not be loaded. Try Refresh."}</p>}
+          {teamsLoaded && <div className="organization-directory">
+            <div className="organization-list">
+              {orgs.length === 0 ? <div className="organization-empty"><div className="organization-art" aria-hidden="true"><span>◎</span><span>◇</span><span>⊞</span></div><h3>Make room for your team.</h3><p>Bring agents and collaborators into one organization.</p></div> : orgs.map(o => <button key={o.id} className={`organization-choice ${org?.id === o.id ? "selected" : ""}`} disabled={busy} aria-pressed={org?.id === o.id} onClick={() => run(() => loadOrg(o.id))}><span className="organization-avatar" aria-hidden="true">{o.name.slice(0,1).toUpperCase()}</span><span className="organization-choice-name"><b>{o.name}</b><small>{o.role}</small></span><span aria-hidden="true">↗</span></button>)}
+            </div>
+            {!orgs.some(o => o.role === "owner") && <form className="organization-create" onSubmit={e => {e.preventDefault(); if (!name.trim() || busy) return; run(async () => {const created = await sdk.createOrganization(name.trim()); setName(""); await loadOrgs(); await loadOrg(created.id); setTeamTab("members");});}}>
+              <span className="organization-eyebrow">NEW ORGANIZATION</span><h3>Start a team</h3><label htmlFor="organization-name">Organization name</label><input id="organization-name" placeholder="e.g. Research collective" value={name} maxLength={100} required disabled={busy} onChange={e => setName(e.target.value)} /><button disabled={busy || !name.trim()}>{busy ? "Please wait…" : "Create organization ↗"}</button><small>You’ll be the owner · one wallet signature</small>
+            </form>}
+          </div>}
           {org && (
             <>
-              <div className="detail">
-                <b>
-                  {org.name} · {org.role}
-                </b>
-                <p>
-                  Owner: {org.owner_address} · membership version {org.version}
-                </p>
-                {teamTab === "members" && org.members.map((m) => (
-                  <p key={m.address}>
-                    {m.address} · {m.role}
-                  </p>
-                ))}
+              <div className="organization-selected">
+                <div className="organization-selected-title"><span className="organization-avatar" aria-hidden="true">{org.name.slice(0,1).toUpperCase()}</span><div><h3>{org.name}</h3><span className="organization-role">{org.role}</span></div></div>
+                <div className="organization-stats"><span><b>{org.members.length}</b> collaborators</span><span><b>{org.agents.filter(a => !a.revoked).length}</b> active agents</span></div>
               </div>
-              <nav className="operation-tabs" aria-label="Team sections">{["members", "agents", "permissions"].map(tab => <button key={tab} aria-current={teamTab === tab ? "page" : undefined} onClick={() => setTeamTab(tab)}>{tab}</button>)}</nav>
+              <details className="organization-identity"><summary>Organization details</summary><p>Owner: {org.owner_address}</p><p>Membership version: {org.version}</p></details>
+              <nav className="operation-tabs" aria-label="Team sections">{["members", "agents", "permissions"].map(tab => <button key={tab} aria-current={teamTab === tab ? "page" : undefined} onClick={() => setTeamTab(tab)}>{tab.charAt(0).toUpperCase()+tab.slice(1)}</button>)}</nav>
+              {teamTab === "members" && <div className="organization-members">{org.members.length === 0 ? <p>No collaborators added yet.</p> : org.members.map(m => <div className="organization-member" key={m.address}><span className="organization-member-address">{m.address}</span><span className="organization-role">{m.role}</span></div>)}</div>}
               {org.role === "owner" && teamTab === "members" && (
                 <form
                   onSubmit={(e) => {
@@ -442,7 +407,6 @@ export default function TeamVaultPanel({ account, signal, mode }) {
         </>
       ) : (
         <>
-          <p>Encrypted memories require review before sharing.</p>
           <div className="vault-progress" aria-label="Encryption setup status">
             <span className={identity ? "complete" : ""}>
               {identity ? "✓" : "01"} Identity{" "}
@@ -454,23 +418,28 @@ export default function TeamVaultPanel({ account, signal, mode }) {
             </span>
             <span className={scope ? "complete" : ""}>
               {scope ? "✓" : "03"}{" "}
-              {scope ? "Namespace selected" : "Choose a namespace"}
+              {scope ? "Collection selected" : "Choose a collection"}
             </span>
           </div>
-          <details open={!identity || !backedUp}>
-            <summary>{identity ? "Vault unlocked · key and backup settings" : "Unlock or set up your vault"}</summary>
-            <p>
-              Keep your backup and passphrase. Refreshing locks the vault; without the backup and passphrase, you cannot restore access.
-            </p>
+          <div className="vault-setup-grid">
+          <details className="vault-identity-card" open={!identity || !backedUp}>
+            <summary>{identity ? "Identity & backup" : "Unlock your vault"}<span className="vault-lock-state">{identity ? "Unlocked" : "Locked"}</span></summary>
+            <div className="vault-identity-body">
+            <div className="vault-mode-tabs" role="group" aria-label="Vault identity setup">
+              <button type="button" aria-pressed={vaultSetupMode === "create"} onClick={() => setVaultSetupMode("create")}>{identity ? "Manage identity" : "Create new"}</button>
+              <button type="button" aria-pressed={vaultSetupMode === "restore"} onClick={() => setVaultSetupMode("restore")}>Restore backup</button>
+            </div>
+            <label htmlFor="vault-backup-password">Backup passphrase</label>
             <input
+              id="vault-backup-password"
               type="password"
               autoComplete="new-password"
               aria-label="Encryption backup passphrase"
-              placeholder="Backup passphrase (at least 12 characters)"
+              placeholder="At least 12 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <div className="inline">
+            <div className="inline vault-create-actions" hidden={vaultSetupMode !== "create"}>
               <button disabled={busy || password.length < 12 || setupRegistered} onClick={() => run(async () => {
                 const nextIdentity = identity || await generateIdentity();
                 await installIdentity(nextIdentity);
@@ -478,11 +447,11 @@ export default function TeamVaultPanel({ account, signal, mode }) {
                 await sdk.registerEncryptionIdentity(nextIdentity.publicKey);
                 setSetupRegistered(true);
                 setNotice("Vault identity registered. Keep your downloaded backup and passphrase safe.");
-              })}>{setupRegistered ? "Identity registered" : "Create backup and register identity"}</button>
+              })}>{setupRegistered ? "Identity registered" : "Create & back up identity"}</button>
               {identity && <button disabled={busy || password.length < 12} onClick={() => run(async () => {download(await exportIdentity(identity, password)); setBackedUp(true);})}>Download backup again</button>}
             </div>
-            <label>
-              Restore encrypted backup
+            <label className="vault-restore-upload" hidden={vaultSetupMode !== "restore"}>
+              Encrypted backup file
               <input
                 type="file"
                 accept="application/json"
@@ -521,18 +490,39 @@ export default function TeamVaultPanel({ account, signal, mode }) {
               </button>
             )}
             {fingerprint && (
-              <p>
-                Public fingerprint: <code>{fingerprint}</code>
-              </p>
+              <details className="vault-fingerprint"><summary>Public fingerprint</summary><code>{fingerprint}</code></details>
             )}
+            <p className="vault-backup-note">Keep your backup and passphrase. Both are needed to restore access after a refresh.</p>
+            </div>
           </details>
-          <details>
-            <summary>
-              Create a private collection or manage recipients
-            </summary>
+          <div className="vault-collections-card">
+            <header><h3>Collections</h3></header>
+            <div className="vault-collections-body">
+              <div className="vault-collection-picker"><label htmlFor="vault-collection-picker">Your collections</label><button disabled={busy} onClick={() => run(loadScopes)} aria-label="Refresh collections">↻ Refresh</button></div>
+          <select
+            id="vault-collection-picker" aria-label="Encrypted collection"
+            disabled={busy || !!pending}
+            value={scopeId}
+            onChange={(e) => {
+              setScopeId(e.target.value);
+              setRows([]);
+              setRotation(null);
+            }}
+          >
+            <option value="">Choose collection</option>
+            {scopes.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.namespace} · key v{s.active_version}
+              </option>
+            ))}
+          </select>
+
+          <details className="vault-create-collection">
+            <summary>Create collection & manage recipients</summary>
             <p>
               Include each recipient’s wallet and verified fingerprint. Permissions alone do not share keys; revocation cannot erase downloaded keys.
             </p>
+            <div className="vault-field-pair">
             <label>
               Owner wallet
               <input
@@ -541,12 +531,13 @@ export default function TeamVaultPanel({ account, signal, mode }) {
               />
             </label>
             <label>
-              New namespace
+              Collection name
               <input
                 value={namespace}
                 onChange={(e) => setNamespace(e.target.value)}
               />
             </label>
+            </div>
             <div className="recipient-picker">
               <h3>People with a key</h3>
               {pins.trim().split(/\n+/).filter(Boolean).map(line => <div className="row" key={line}><small>{line.split(" ")[0]}</small><button disabled={busy} onClick={() => setPins(p => p.split("\n").filter(l => l !== line).join("\n"))}>Remove</button></div>)}
@@ -581,26 +572,9 @@ export default function TeamVaultPanel({ account, signal, mode }) {
               Create private collection
             </button>
           </details>
-          <button disabled={busy} onClick={() => run(loadScopes)}>
-            Refresh collections
-          </button>
-          <select
-            aria-label="Encrypted namespace"
-            disabled={busy || !!pending}
-            value={scopeId}
-            onChange={(e) => {
-              setScopeId(e.target.value);
-              setRows([]);
-              setRotation(null);
-            }}
-          >
-            <option value="">Choose namespace</option>
-            {scopes.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.namespace} · key v{s.active_version}
-              </option>
-            ))}
-          </select>
+            </div>
+          </div>
+          </div>
           {scope && (
             <>
               <div className="detail">
