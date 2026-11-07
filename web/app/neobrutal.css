@@ -2472,3 +2472,14 @@ textarea:focus {
 .workspace .demo-wallet-status button { padding: 10px 14px; font-size: 12px; }
 .demo-transaction { margin-top: 16px; border: 1px solid var(--ink); padding: 14px; font-size: 13px; }
 .demo-transaction a { display: block; margin-top: 8px; }
+.demo-agent-identities .ens-progress { margin-top: 12px; padding: 12px; border: 1px solid #b9bda9; box-shadow: none; background: #fffef8; }
+.demo-agent-identities .ens-progress-header { flex-wrap: wrap; gap: 8px; }
+.demo-agent-identities .ens-progress-name { font-size: 12px; overflow-wrap: anywhere; }
+.demo-agent-identities .ens-progress-steps { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.demo-agent-identities .ens-progress-steps li { font-size: 10px; }
+.demo-agent-identities .ens-progress-eyebrow, .demo-agent-identities .ens-progress-caption, .demo-agent-identities .ens-progress-badge { font-size: 10px; }
+.demo-agent-identities > div > a { display: inline-block; font-size: 11px; margin-top: 10px; }
+.demo-plain-scan { position: relative; overflow: hidden; }
+.demo-plain-scan.scanning::after { content: ""; position: absolute; pointer-events: none; top: 0; left: 0; right: 0; height: 64px; background: linear-gradient(transparent, #b9a3ef40); border-bottom: 2px solid #9273c4; animation: demo-scan 5s linear forwards; }
+.demo-scan-status { position: absolute; bottom: 12px; left: 12px; right: 12px; display: flex; align-items: center; gap: 10px; padding: 12px; font: 12px monospace; background: var(--ink); color: white; z-index: 1; }
+@media(prefers-reduced-motion: reduce) { .demo-plain-scan.scanning::after { animation: none; top: 50%; } }

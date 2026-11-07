@@ -77,7 +77,7 @@ async def demo_run(data: DemoRun, signer: Annotated[str, Depends(authenticate)])
             process.stdin.write(data.model_dump_json().encode())
             await process.stdin.drain()
             process.stdin.close()
-            async with asyncio.timeout(300):
+            async with asyncio.timeout(900):
                 async for line in process.stdout:
                     await queue.put(line)
                 await process.wait()

@@ -32,7 +32,7 @@ COPY --from=adapters /app/integrations/ integrations/
 COPY --from=adapters /app/contracts/artifacts/ contracts/artifacts/
 COPY deploy/start_gateway.py deploy/start_gateway.py
 COPY --from=adapters /app/sdk/typescript/ sdk/typescript/
-COPY web/lib/payment-demo.mjs web/lib/sepolia-demo-server.mjs web/lib/sepolia-demo-workflow.mjs web/lib/
+COPY web/lib/payment-demo.mjs web/lib/demo-ens.mjs web/lib/sepolia-demo-server.mjs web/lib/sepolia-demo-workflow.mjs web/lib/
 COPY web/scripts/hosted-demo-worker.mjs web/scripts/
 # Worker imports viem from the SDK dependency tree without installing Next.js.
 RUN mkdir -p web/node_modules && ln -s /app/sdk/typescript/node_modules/viem web/node_modules/viem

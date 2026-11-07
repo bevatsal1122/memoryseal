@@ -1,6 +1,6 @@
 # Deploy the MemorySeal gateway on Railway
 
-The public frontend is `https://memoryseal.work` (hosted on Vercel). Railway runs the Python gateway. This repository now contains a backend `Dockerfile`, `railway.toml`, a restricted Docker build context, and a startup script.
+The public frontend is `https://www.memoryseal.work` (hosted on Vercel). Railway runs the Python gateway. This repository now contains a backend `Dockerfile`, `railway.toml`, a restricted Docker build context, and a startup script.
 
 ## 1. Publish the deployment files
 
@@ -37,7 +37,7 @@ Paste it into Railway's `MEMORYSEAL_ENCRYPTION_KEY` value and retain a secure ba
 
 ## 4. Configure the integrations you intend to use
 
-A healthy gateway can serve wallet authentication, registrations, team policies and encrypted-vault APIs without funded external integrations. Full existing demo functionality requires its backend variables too:
+A healthy gateway can serve wallet authentication, registrations, team policies and encrypted-vault APIs without funded external integrations. External features require their backend configuration:
 
 | Integration | Variables to transfer deliberately from your local configuration |
 | --- | --- |
@@ -50,7 +50,7 @@ Keep private keys, encryption keys and provider credentials **only in backend va
 
 The Docker image includes ENS/Arkiv Node adapters and freshly compiled policy/executor artifacts. It does **not** include the operator-reviewed 0G bridge or `pcverify` binaries. macOS executable paths will not work inside Linux. Strict inference remains fail-closed unless its required Linux verifier is separately provided. Hosting does not fix the previously discussed provider baseline/attestation limitation. If retaining the temporary non-private test route, deliberately reproduce its existing trust-mode settings and use synthetic content; do not weaken production verification merely to make a healthcheck pass.
 
-The deployment startup script defaults `MEMORYSEAL_AUTO_PUBLISH=true`. With an Arkiv publisher configured, a background worker publishes queued public event metadata and checks uncertain submissions without resending them. It uses durable backoff and an OS lock on the database volume. Set `MEMORYSEAL_AUTO_PUBLISH=false` to retain manual publication. This also processes existing pending events; it never publishes plaintext memory content. Keep one replica. Schema version 13 adds scheduling fields and guided setup receipts; back up the volume before this upgrade.
+The deployment startup script defaults `MEMORYSEAL_AUTO_PUBLISH=true`. With an Arkiv publisher configured, a background worker publishes queued public event metadata and checks uncertain submissions without resending them. It uses durable backoff and an OS lock on the database volume. Set `MEMORYSEAL_AUTO_PUBLISH=false` to retain manual publication. This also processes existing pending events; it never publishes plaintext memory content. Keep one replica. The current schema is version 14, including scheduling, setup receipts and ENS registration jobs; back up the volume before migrations.
 
 ## 5. Deploy and obtain the gateway URL
 
@@ -77,9 +77,9 @@ NEXT_PUBLIC_GATEWAY_URL=https://YOUR-RAILWAY-DOMAIN
 NEXT_PUBLIC_GATEWAY_AUDIENCE=memoryseal-local
 ```
 
-Use the HTTPS origin only, without `/health`, `/api`, credentials or query strings. Redeploy the frontend so Next.js embeds the new values. The screenshot's local-gateway error cannot be fixed by changing wallet networks or adding funds.
+Use the HTTPS origin only, without `/health`, `/api`, credentials or query strings. Redeploy the frontend so Next.js embeds the new values. A hosted frontend pointing at localhost requires a build-time gateway URL correction.
 
-Return to `https://sealmemory.vercel.app`, connect the wallet, and review the signed read requests. Wallet connection itself does not require a token payment. If you see a CORS error, verify the backend's exact allowed origin. If signatures are rejected, verify both audience settings and the client clock.
+Return to `https://www.memoryseal.work`, connect the wallet, and sign the login message. Subsequent supported reads reuse that session. Wallet connection itself does not require a token payment. If you see a CORS error, verify the backend's exact allowed origin. If signatures are rejected, verify both audience settings and the client clock.
 
 ## Existing laptop data
 
@@ -89,7 +89,7 @@ A fresh Railway volume starts an **empty workspace**, even with the same owner w
 
 `tests/test_railway_start.py` checks invalid key/volume/database rejection, actual gateway startup, `/health`, the Vercel CORS origin, rejection of unsigned reads, and database persistence across restart using an isolated temporary directory. It does not test Railway's volume infrastructure or build the Linux Docker image.
 
-The local Docker daemon was unavailable during preparation, so the container image still needs its first Railway build. No Railway service was created or billed by these repository changes.
+The existing Railway service has been deployed and exercised. The live observations below are dated checks; use `/health` and authenticated integration observations to assess a current deployment.
 
 Sources: [Railway Dockerfiles](https://docs.railway.com/builds/dockerfiles), [volumes](https://docs.railway.com/volumes), [configuration as code](https://docs.railway.com/config-as-code/reference), [health checks](https://docs.railway.com/deployments/healthchecks).
 

@@ -35,13 +35,13 @@ The memory list refreshes publication metadata periodically when no inspection i
 ## Other pages
 
 - **Overview:** accurate workspace counts and a shorter getting-started guide; only recent activity is shown.
-- **Agents:** friendly labels; addresses, ENS observations and chain settings in identity details. ENS observation is a read operation; naming transactions still require wallet confirmation.
+- **Agents:** grouped identity cards, five-digit ENS name suffixes, verified registration progress and expandable transaction links. A dedicated backend registrar pays for naming transactions after one-time parent setup; ordinary users sign only their agent setup request.
 - **Permissions:** grouped by agent. Signed grants and revocation retain their original checks.
 - **Organizations:** automatic loading, automatic selection when there is one team, and separate member/agent/permission tasks.
 - **Encrypted vault:** combined identity generation, encrypted backup download and registration; separate restore and lock controls. Public recipient fingerprints still require independent checking. Private writers use an agent picker. Keys remain in memory, not browser storage.
 - **Vault rotation:** client-side decryption/rewrapping with a signed batch of at most five records, rather than one signature per record. The backend applies the batch atomically and checks scope, owner access, active key version and revisions. Lost-response exact retries are idempotent. Progress is refreshed after each batch.
 - **Playground transfers:** human-readable token amounts, token decimal lookup, fresh policy version, simulation before execution, and receipt polling. Technical parameters and recovery tools remain available. Distinct onchain approvals are not silently combined.
-- **Settings:** compact connection summary, with diagnostic and advanced ENS/onchain controls collapsed.
+- **Settings:** compact connection summary and advanced ENS/onchain controls, with navigation visible only when `?devmode=true` is present.
 
 ## Wallet confirmations that remain
 
@@ -70,15 +70,15 @@ A cancelled or expired login can require a new signature. Switching accounts or 
 - `src/memoryseal/api.py`: atomic `/agents/setup`, workspace summary, GET ENS observation and scheduler lifecycle.
 - `src/memoryseal/memory_service.py`: review eligibility.
 - `src/memoryseal/publication_loop.py`, `outbox_worker.py`: persistent publication scheduling and safe reconciliation.
-- `src/memoryseal/models.py`, `migrations.py`: schema 13, labels, setup receipts and outbox scheduling fields.
+- `src/memoryseal/models.py`, `migrations.py`: schema 14, labels, setup receipts, outbox scheduling fields and durable ENS registration jobs.
 - `src/memoryseal/vault.py`: bounded atomic rewrap batches.
 - `sdk/typescript/src/index.ts`, `src/memoryseal/client.py`: setup helpers; TypeScript batched migration.
 
 ## Deployment and validation
 
-Deploy backend and frontend together, backend first. Back up the database volume before the schema 13 migration. Preserve the encryption key, publisher key, domain origins and existing provider configuration. Older gateways reject the newer schema; restore a backup for a deliberate rollback rather than running old code against it.
+Deploy backend and frontend together, backend first. Back up the database volume before database migrations. Preserve the encryption key, publisher key, domain origins and existing provider configuration. Older gateways reject the newer schema; restore a backup for a deliberate rollback rather than running old code against it.
 
-Validation performed locally: 266 Python tests passed, 6 skipped; 12 browser-transport tests passed; 4 TypeScript SDK tests passed, including live HTTP team isolation, encrypted sharing, rotation, rollback and exact batch retry. Production Next build passed. Browser QA used an isolated local database, synthetic inference and disposable wallet signing accounts: agent setup took one signature; saving took one signature; reading added none. These tests do not represent new production-chain transactions or a real MetaMask confirmation run.
+Historical verification for the workflow-simplification change (not a fresh health check): 266 Python tests passed, 6 skipped; 12 browser-transport tests passed; 4 TypeScript SDK tests passed, including live HTTP team isolation, encrypted sharing, rotation, rollback and exact batch retry. Production Next build passed. Browser QA used an isolated local database, synthetic inference and disposable wallet signing accounts: agent setup took one signature; saving took one signature; reading added none. These tests do not represent new production-chain transactions or a real MetaMask confirmation run.
 
 ## Memory relationship map
 

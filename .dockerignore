@@ -33,6 +33,7 @@
 !web/
 !web/lib/
 !web/lib/payment-demo.mjs
+!web/lib/demo-ens.mjs
 !web/lib/sepolia-demo-server.mjs
 !web/lib/sepolia-demo-workflow.mjs
 !web/scripts/

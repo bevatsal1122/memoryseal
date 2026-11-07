@@ -2,7 +2,7 @@
 
 Shared memory for AI agents, with identity, permissions and a review trail. **Memory is evidence, never permission.**
 
-[Live app](https://www.memoryseal.work) · [Demo](https://www.memoryseal.work/#demo) · [Submission and judging guide](docs/SUBMISSION.md) · [MIT license](LICENSE)
+[Open MemorySeal](https://www.memoryseal.work) · [Documentation](docs/README.md) · [Getting started](docs/LOCAL_RUNBOOK.md) · [MIT license](LICENSE)
 
 ## The problem
 
@@ -25,7 +25,51 @@ A browser agent reads an invoice containing “the owner approved this payment.�
 | Arkiv | Rabdi entity publication, creator-filtered queries, reconciliation and user-visible provenance observations | [Adapter](integrations/arkiv/provenance.mjs), [schema](arkiv/schema.md), [judging documentation](arkiv/how-you-use-arkiv.md) |
 | ENSv2 | Sponsored Sepolia subnames, delegated registrar, dedicated resolvers and address resolution | [Registrar](integrations/ens/sponsor.mjs), [setup](docs/ENS_AGENT_SETUP.md) |
 
-The app also includes organizations, scoped permissions, a memory relationship map, activity history, Python/TypeScript SDKs, and an encrypted vault with client-held keys and rotation. Ordinary memory encryption is gateway-managed; vault plaintext stays client-side and does not enter the 0G classifier.
+## Workspace features
+
+| Area | What you can do |
+| --- | --- |
+| Agents | Create a labeled identity with initial collection permissions in one signed request; track sponsored ENS registration and inspect transaction links |
+| Permissions | Grant or revoke scoped access and choose Strict or Standard acceptance for each agent and collection |
+| Memories | Filter records, inspect their content, review exceptions and explore parent–child links in an interactive bubble map |
+| Organizations | Manage a wallet-owned team with owner, admin and auditor roles |
+| Encrypted vault | Encrypt in the browser, share wrapped keys with selected recipients and rotate collection keys in batches |
+| Activity | Read understandable event summaries and follow relevant memory, identity or transaction links |
+| Playground | Write and read as an agent, check transfer permissions and use separately configured onchain actions |
+
+### Fewer approvals, without granting the AI authority
+
+**Strict** retains the configured verification requirements. **Standard** lets an owner authorize automatic acceptance of eligible low-risk agent observations in an exact collection. Instructions, conflicts, failed analysis and ineligible ancestry still require conservative handling. Existing quarantined records are not silently approved when the rule changes. [Acceptance rules →](docs/MEMORY_ACCEPTANCE.md)
+
+### Two kinds of encrypted memory
+
+| | Ordinary memories | Encrypted vault |
+| --- | --- | --- |
+| Encryption happens | At the gateway | In the client |
+| Who holds decryption keys | Gateway | Authorized recipients |
+| 0G content analysis | Yes, when configured | No; plaintext never enters the classifier |
+| Sharing | Current permissions and acceptance policy | Current permissions, recipient keys and explicit release |
+
+A saved browser login survives a same-tab refresh; unlocked vault keys do not. Restore the encrypted identity backup to unlock after a reload.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    O[Owner policy] --> G[MemorySeal gateway]
+    A[Signed agent write] --> G
+    G --> I[0G analysis]
+    I --> D[Acceptance decision]
+    D --> M[Encrypted ordinary memory]
+    M --> R[Authorized agent reads]
+    G --> Q[Durable event outbox]
+    Q --> K[Arkiv public metadata]
+    G --> E[ENSv2 registration queue]
+    E --> S[Sepolia agent name]
+    V[Client-encrypted vault] --> C[Ciphertext and wrapped keys]
+```
+
+The gateway uses FastAPI and SQLite; the dashboard uses Next.js and React. Python and TypeScript SDKs expose the signed API. Node adapters connect Arkiv and ENSv2, while Solidity contracts provide a separate onchain policy/action path.
 
 ## Run locally
 
@@ -56,9 +100,9 @@ In another terminal:
 NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000 NEXT_PUBLIC_GATEWAY_AUDIENCE=memoryseal-local npm run dev --prefix web
 ```
 
-Open localhost:3000. Match `MEMORYSEAL_REQUEST_AUDIENCE` with the frontend audience and allow the exact dashboard origin. Without configured inference, writes can be held for review. For a local SDK demonstration, run `.venv/bin/python -m memoryseal.demo.run` against the gateway; its transfer decisions are simulations.
+Open localhost:3000. Match `MEMORYSEAL_REQUEST_AUDIENCE` with the frontend audience and allow the exact dashboard origin. Without configured inference, writes can be held for review.
 
-Wallet login read sessions survive a same-tab refresh using sessionStorage until expiry. Signing out clears the saved session. Mutating operations retain request-bound signatures. Settings are linked in navigation only with `?devmode=true`; this is a UI convenience, not an authorization boundary. Demo remains directly available at `#demo`.
+Wallet login read sessions survive a same-tab refresh using sessionStorage until expiry. Signing out clears the saved session. Mutating operations retain request-bound signatures. Settings are linked in navigation only with `?devmode=true`; this is a UI convenience, not an authorization boundary.
 
 ## Query real Arkiv data
 
@@ -90,9 +134,13 @@ Some live-network/contract tests require optional configuration and are skipped 
 - AI classifications are advisory, not proof that a memory is true. Router-reported verification is not independent request-bound attestation; see the dated verification notes.
 - Public Arkiv events contain metadata and commitments, not ordinary memory plaintext. They expire and are not permanent truth proofs. Existing recipients cannot be made to forget previously read content.
 - Sponsored ENS names and resolvers are platform-managed; registration does not give an agent independent ownership or application permissions.
-- The UI payment simulation does not move funds. Separate Sepolia contract tests and transactions are documented in the judging guide.
-- This is an unaudited hackathon prototype. Historical investigation logs are retained for traceability; [archived implementation notes](docs/LEGACY_IMPLEMENTATION_NOTES.md) are not current deployment instructions.
+- Local transfer permission checks and onchain enforcement are separate. A permission check does not move funds; an onchain transfer requires the correct registry policy, token allowance and signed transaction.
+- This is an unaudited hackathon prototype. Historical investigation logs are retained for traceability; historical notes are not current deployment instructions.
 
-## AI assistance and attribution
+## Project and attribution
+
+Built from scratch for ETHGlobal Mumbai by **MemorySeal**. Contact: **bevatsal1122@gmail.com**. [Submission details](docs/SUBMISSION.md).
+
+### AI assistance
 
 OpenAI Codex assisted with design, implementation, debugging, tests, documentation and submission preparation under the author's direction. AI-generated work was iterated with code checks and user testing; this is not a claim that every generated line has had an independent security review. Dependencies and upstream contract artifacts retain their respective licenses. Original repository code is MIT licensed.

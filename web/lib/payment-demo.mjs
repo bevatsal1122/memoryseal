@@ -51,7 +51,7 @@ export function naiveFinanceLimit(instruction, ownerLimit = OWNER_LIMIT) {
   return claimed ? Number(claimed[1].replaceAll(",", "")) : ownerLimit;
 }
 
-export async function runPaymentDemo({ mode, invoice, clients, emit, signal, onStage = async () => {}, onMemory = () => {}, names = demoAgentNames(), payment = null }) {
+export async function runPaymentDemo({ mode, invoice, clients, emit, signal, onStage = async () => {}, onMemory = () => {}, names = demoAgentNames(), payment = null, prepareAgents = null }) {
   const limit = payment ? 0.005 : OWNER_LIMIT;
   const format = payment ? n => `${n} Sepolia ETH` : n => `$${n.toLocaleString()}`;
   const asset = payment ? "eip155:11155111/slip44:60" : DEMO_ASSET;
@@ -65,7 +65,11 @@ export async function runPaymentDemo({ mode, invoice, clients, emit, signal, onS
   let browserAgent, financeAgent;
   const namespace = "demo-invoices";
   onMemory({names});
-  if (mode === "protected") {
+  if (prepareAgents) {
+    await onStage("setup");
+    ({browserAgent, financeAgent} = await prepareAgents({onMemory,onStage,signal}));
+    log("ENS", "Both agent names verified", `${browserAgent.ens_name} → ${financeAgent.ens_name}`);
+  } else if (mode === "protected") {
   await onStage("setup");
   log("Gateway", "Registering isolated demo identities", "A fresh owner, browser agent, and finance agent. Your workspace is unchanged.");
   browserAgent = await owner.request("POST", "/agents/register", {signing_address: browser.signer.address, label: names.browser});

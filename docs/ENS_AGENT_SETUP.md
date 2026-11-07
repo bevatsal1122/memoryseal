@@ -1,19 +1,19 @@
 # Automatic sponsored ENS registration (Sepolia)
 
-> Submission navigation (7 November 2026): see [the current README](../README.md) and [judging guide](SUBMISSION.md). Dated observations below describe the state when recorded and must not be treated as a current deployment health report.
+Updated 7 November 2026. This guide covers the deployed Sepolia naming flow and setup for a new operator.
 
 Users create an agent with the normal signed MemorySeal request. The gateway atomically creates the agent, its permissions and an ENS registration job. Users do not need the parent wallet, Sepolia ETH or ENS transaction confirmations. The service assigns a unique name such as `research-48271.memoryseal.eth` and pays Sepolia gas using a dedicated registrar. New names use five random digits, with database collision checks and onchain availability checks before signing. If the label is already used onchain, the unsubmitted job picks another suffix. Existing registered names are unchanged.
 
 ## Activate once
 
 1. Deploy the backend and frontend changes.
-2. Add the entries from the ignored, mode-0600 local `.env.railway-ens` file to Railway, preserving existing variables. Never paste the key into chat or commit it. This file was generated for this deployment and contains a dedicated key, not the parent-owner key.
+2. Configure the backend variables below with a dedicated registrar key. For this existing deployment, preserve its configured key and other service variables. For a new deployment, create a separate registrar wallet; do not use the parent-owner key.
 3. Fund registrar `0x10001C3e369DDA564Ff7d0d2C5e0fFfE267271B5` with Sepolia ETH. A small test balance, for example 0.02, is a starting point; monitor its balance and actual gas use.
-4. Connect parent-owner wallet `0x0b0a492D98671d187036766a55016Bf4b80e873B` on Sepolia. Open **Integrations → ENS → ENS operator setup → Configure sponsored registration**. The owner confirms three one-time transactions: deploy a UserRegistry with the owner's administration roles and the sponsor's registrar-only root role; set its canonical parent pointer; attach it to `memoryseal.eth`.
+4. Connect parent-owner wallet `0x0b0a492D98671d187036766a55016Bf4b80e873B` on Sepolia. Open `https://www.memoryseal.work/?devmode=true#settings`, select **Agent names → ENS operator setup → Configure sponsored registration**. The owner confirms three one-time transactions: deploy a UserRegistry with the owner's administration roles and the sponsor's registrar-only root role; set its canonical parent pointer; attach it to `memoryseal.eth`.
 5. The setup verifies the factory implementation, exact transaction calldata, canonical registry and sponsor role. It refuses to replace an existing unrelated subregistry. If the parent already has a registry, grant its registrar root role to the sponsor through the existing registry's owner tools instead.
 6. Create an agent from another wallet. Its card should advance from queued to registering to registered and show Sepolia transaction links. The gateway assigns `ens_name` only after the final address lookup matches the agent signing address.
 
-The ENS app's testnet dollar display is not a requirement to buy real assets. All transactions described here are on Sepolia. The parent `memoryseal.eth` has been observed owned by the wallet above; its subregistry was still absent at implementation time. Operator setup and live end-to-end registration must be confirmed after deployment, not inferred from test success.
+The existing memoryseal.eth setup has completed. Its canonical subregistry is `0x828AfCc3D80C65C1620495e1E0EAF5c980D8F1C8`. The owner completed setup and subsequently observed successful sponsored registration and matching address resolution for an agent. Do not repeat initialization for this already-configured registry. These observations do not guarantee future RPC availability, gas balance or parent renewal. All transactions here are on Sepolia.
 
 ## Railway variables
 
@@ -44,10 +44,12 @@ The worker uses a process lock and serializes the dedicated signer's queue. A No
 
 Authenticated owners are limited to 5 jobs per rolling 24 hours by default, with a global 50-job ceiling and 20 gwei maximum fee. Failed and cancelled attempts still count. The global ceiling bounds multi-wallet abuse; per-wallet limits are not a Sybil-proof identity system. Successful agent creation and memory permissions do not depend on the ENS network finishing immediately.
 
-Public API responses include name, state, step and transaction hashes. They exclude signer secrets and raw signed transaction storage. Error logs do not print subprocess output or credentials. Agent cards poll using the existing read session without wallet prompts.
+Public API responses include name, state, step and transaction hashes. They exclude signer secrets and raw signed transaction storage. Error logs do not print subprocess output or credentials. Agent cards poll using the existing read session without wallet prompts. A four-stage progress bar advances only after verified stages: register name, create resolver, connect name, verify address. The completed state is compact, with expandable transaction links.
 
-## Validation
+## Validation and operational checks
 
-The full Python suite passed: 270 passed, 6 skipped. ENS Node adapter tests passed, and an isolated production frontend build passed. Added tests cover quotas, public-status filtering, persistence-before-broadcast, crash/retry reuse of identical transaction bytes, stage progression, revert handling and revocation cancellation. A read-only Sepolia simulation successfully deployed the planned UserRegistry initialization for the actual owner and dedicated sponsor; no transaction was broadcast by that simulation.
+Tests cover quotas, public-status filtering, persistence-before-broadcast, reuse of identical transaction bytes after retries, stage progression, revert handling, collision replacement and cancellation after revocation. Source tests live in `tests/test_ens_registration.py` and the ENS adapter test directory.
 
-Live operator setup, registrar funding and another-wallet agent registration remain deployment checks. Never describe them as completed until receipts and forward resolution have been observed.
+The user observed a completed live registration for `yoyo-d5547cb29f324332a56ced9dac29dc43.memoryseal.eth` resolving to `0x3f0bfca263b79737864fb891400680c767234e78`. That older name retains its original suffix; new names use five digits. See the [submission evidence](SUBMISSION.md#public-deployment-evidence).
+
+For a new installation, verify the canonical parent/subregistry, delegated registrar role, available Sepolia gas, all four receipts and final forward resolution. A configured service or successful unit test is not a substitute for those checks.

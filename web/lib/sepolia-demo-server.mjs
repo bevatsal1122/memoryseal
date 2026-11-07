@@ -37,8 +37,8 @@ export async function config() {
 export async function checkedChain(client) {
  if(await client.getChainId() !== CHAIN_ID) throw new Error('RPC is not Ethereum Sepolia. Sending is disabled.');
 }
-async function load(name) {try{return JSON.parse(await readFile(resolve(directory,name),'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}}
-async function save(name,data) {
+export async function load(name) {try{return JSON.parse(await readFile(resolve(directory,name),'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}}
+export async function save(name,data) {
  const file=resolve(directory,name), temp=`${file}.${crypto.randomUUID()}.tmp`;
  await writeFile(temp,JSON.stringify(data,null,2),{mode:0o600}); await rename(temp,file);
 }

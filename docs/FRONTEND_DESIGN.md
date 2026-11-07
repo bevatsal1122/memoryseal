@@ -1,73 +1,55 @@
-# MemorySeal frontend
+# Frontend and interaction guide
 
-Product positioning: **MemorySeal is the memory protocol for multi-agent systems.** Use this wording in the main headline, supporting marketing copy, footer and page metadata. Keep functional labels such as workspace, vault and permissions specific to their tasks.
+The workspace uses warm paper backgrounds, dark borders, hard shadows, lime primary actions, lavender detail panels and peach attention states. The goal is a short everyday path with technical evidence available on demand.
 
-The frontend uses a neobrutalist visual system: warm paper backgrounds, near-black borders, hard shadows, lime actions, lavender context panels and peach review states. It retains the development-preview label and does not imply that incomplete provider verification is solved.
+## Screens
 
-## Screen structure
+| Screen | Main task | Details available when needed |
+| --- | --- | --- |
+| Overview | See agents, active permissions, review counts and recent activity | Activity categories and links to relevant tasks |
+| Agents | Add a friendly name, signing address and initial collection access | Identity, permissions, ENS registration progress and transaction links |
+| Permissions | Manage scoped grants and acceptance rules | Exact resources, expiry and policy version |
+| Memories | Find, inspect and review memories | Parent relationships, classifier evidence, commitments and publication recovery |
+| Organizations | Create/select a team and manage members, agents and access | Owner/admin/auditor roles and signed membership changes |
+| Encrypted vault | Unlock identity, manage encrypted collections and share records | Recipient fingerprints, key versions and batch migration |
+| Activity | Understand actions and decisions | Context-specific memory, agent and explorer links |
+| Playground | Use an agent's write/read and configured action tools | Proof and transaction recovery controls |
 
-- **Landing:** product explanation, illustrated memory flow, six feature cards, three-step setup and wallet entry points. Wallet connection errors appear with retry guidance.
-- **Overview:** next steps, memory/vault shortcuts, live workspace counts and recent agent/activity summaries. Counts reflect the gateway snapshot; quarantine counts cover the latest 100 records.
-- **Agents:** identity list followed by a vertically ordered registration form.
-- **Permissions:** current grants and a separate grant form. Local permissions retain their existing meaning.
-- **Memories:** filters, results, inspection, owner review and expandable provenance. Trust and attestation limitations remain visible at the relevant action.
-- **Organizations:** owner/admin/auditor workflows using the existing signed gateway requests.
-- **Encrypted vault:** identity/backup/namespace progress, expandable setup, encrypted writes, review and rotation. Switching views retains component state; reloading still clears in-memory keys.
-- **Activity:** the gateway decision trail.
-- **Agent console:** separate Write, Read, Simulate and Onchain transfer tasks. Task switches hide rather than unmount pending operations; the read task exposes its namespace field.
-- **Integrations:** Connections, Agent names and Onchain policies. Each section keeps its own state while navigating.
+Settings contains Connections, Agent names and Onchain policies. Its sidebar entry appears only when the URL includes `?devmode=true`, for example `/?devmode=true#settings`. Backend authorization still applies regardless of navigation visibility.
 
-## Navigation and accessibility
+## Agents and ENS progress
 
-Workspace locations use URL fragments such as `#vault` and `#permissions`; browser back/forward restores the selected view after connection. Only the view name appears in the URL. No wallet secrets, memory content or encryption keys are persisted by navigation.
+Agent cards group the label, public signing address, permission count and collection count. The registration component advances through Register name, Create resolver, Connect name and Verify address. Progress reflects completed stages, not an elapsed-time animation. Once registered it becomes a compact ready state. Transaction links remain expandable. Failed, cancelled and retrying jobs are distinct states.
 
-The interface has keyboard focus outlines, skip links, accessible navigation labels, text alongside status colors, reduced-motion support, wrapping long identifiers and responsive layouts. Phone navigation uses a horizontally scrollable labeled menu instead of unlabeled icons. Controls retain native form validation and existing disabled-state checks.
+The service assigns names such as `research-48271.memoryseal.eth`; existing names are retained. Ordinary users do not manage the parent registry or approve its backend transactions.
 
-## Files
+## Memories and relationship map
 
-- `web/components/design/Landing.jsx`: landing sections and brand.
-- `web/components/design/WorkspaceGuide.jsx`: overview actions.
-- `web/app/style.css`: structural layout and view visibility.
-- `web/app/neobrutal.css`: visual tokens, component styling and responsive rules.
-- `web/lib/workspace-navigation.js`: view navigation and history.
-- `web/app/page.jsx`: existing signed owner workflows and integrations.
-- `web/components/AgentWorkbench.jsx`: signed agent workflows and task selection.
-- `web/components/TeamVaultPanel.jsx`: team and encrypted-vault workflows.
+The map represents the current filtered page, up to 100 records. Arrows show explicit parent-to-child references; they do not infer semantic relationships. Dashed placeholders identify parents outside the current result set. Users can pan, zoom, select a bubble and inspect its immediate connections, or find a missing parent through the existing owner-scoped search.
 
-No external font request is required. The system font stack keeps the initial render independent of font services.
+Bubble size reflects visible links. Availability colors are accompanied by text and are not confidence scores. The record list remains available for browsing and review. Detailed IDs, raw evidence and recovery actions belong in collapsed details rather than dominating the page.
 
-## Acceptance checks
+## Session and feedback
 
-1. Open the landing page at desktop, tablet and phone widths. Check navigation anchors, connection failure and keyboard focus.
-2. Connect a test wallet to the configured gateway. Verify counts and each of the nine views.
-3. Navigate through workspace sections; check browser back/forward and a reload with a view fragment.
-4. Check empty and populated agents, permissions, memories and activity.
-5. Switch among all integration sections. Ensure unrelated forms are hidden and entered values remain.
-6. Load agent access. Switch among the four tasks; confirm a pending write survives task switches and namespace remains locked until resolved.
-7. Check vault progress before/after unlocking a disposable identity. Preserve actual backup and recipient-verification requirements.
-8. Test keyboard navigation, narrow layouts, long identifiers and errors. Use a real test wallet for signed transactions; simulated-wallet visual checks are not live transaction evidence.
+The compact header combines refresh with the wallet address, alongside Switch account and Sign out. Same-tab refresh restores an unexpired session for the matching account, gateway and audience. Account/network changes and sign-out clear it. Vault private keys remain in memory and require unlocking again after reload.
 
-## Verified in this change
+Routine reads reuse the session. Writes and policy changes keep their request-bound signatures. Errors appear in a dismissible modal with a clear next action; errors do not change operation success or pending transaction state.
 
-- Production compilation and static generation passed; the existing viem/ox dynamic-import warning remains.
-- SDK cryptographic and signed-HTTP groups: 2 passed. Browser/helper suite: 10 passed, including two local EVM deployments.
-- Browser checks covered all nine views at 1280, 768, 390 and 320px with synthetic populated data; document width matched viewport width in all 36 checks. Empty-state screens were checked separately at desktop and phone widths.
-- All four agent task selectors and all three integration selectors showed only their corresponding forms. Browser Back restored the previous workspace view.
-- Landing, overview and vault screenshots were inspected. Visual workflow checks used an intercepted gateway and simulated wallet; they did not submit real wallet transactions or consume compute credits.
-- The isolated SDK test runner now waits for a successful health check or fails with the temporary server log, instead of starting tests after an exhausted readiness loop.
-- Branded 404 recovery was rendered and inspected; its home link points to `/`. A simulated rejected wallet connection showed retry guidance and re-enabled the connection button at 320px without page overflow.
-- The temporary preview server was stopped after verification. No additional frontend process is required; run `npm run dev --prefix web` when ready.
+## Accessibility and responsive behavior
 
-## Clean deployment installs
+Use visible keyboard focus, labels, text alongside color, wrapping identifiers and reduced-motion support. Graph nodes support keyboard selection. Keep native validation and meaningful disabled states. Narrow navigation remains labeled and scrollable; do not replace all navigation with unexplained icons.
 
-The frontend imports sibling packages from `sdk/typescript` and `integrations/ens`. Installing only `web` previously left the SDK without `tsc` and the ENS modules without `viem`. The frontend's `postinstall` now runs lockfile-based installs in both packages, explicitly including the SDK's development compiler. `prebuild` then compiles the SDK before Next.js builds the frontend.
+Check empty/populated states, long ENS names, delayed registration, rejected signatures, expired sessions and blocked storage. Test desktop and narrow widths, browser Back/Forward and direct fragment navigation. Switching tasks must preserve unresolved write recovery state.
 
-Keep the repository's sibling directories available to the deployment build. From a clean checkout, the frontend install/build sequence is:
+## Implementation map
 
-```sh
-cd web
-npm ci
-npm run build
-```
+- `web/app/page.jsx`: workspace composition, header and navigation.
+- `web/lib/workspace-navigation.js`: fragment/history handling.
+- `web/lib/browser-session.mjs`: session persistence.
+- `web/components/AgentSetup.jsx`, `AgentCard.jsx`, `EnsRegistrationProgress.jsx`: onboarding and identity.
+- `web/components/MemoryProof.jsx`, `AgentWorkbench.jsx`, `TeamVaultPanel.jsx`: memory evidence, agent tools and vault workflows.
+- `web/app/neobrutal.css`: visual system and responsive rules.
 
-Do not disable install lifecycle scripts: they prepare these shared dependencies. The npm `cache-dir` warning in the reported deployment log was not the failing command; the missing SDK compiler was.
+## Build
+
+The frontend imports sibling packages. Keep `sdk/typescript` and `integrations/ens` available in the checkout. `npm ci --prefix web` installs its sibling dependencies through lifecycle scripts; `npm run build --prefix web` builds the SDK before Next.js. Use a separate checkout for production builds while a development server is running.

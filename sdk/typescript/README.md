@@ -58,7 +58,7 @@ The gateway sees owner, namespace, participants, record IDs, sizes, commitments,
 
 ## Online rotation
 
-Create new recipient envelopes for `scope.active_version + 1` using a **fresh** key and call `rotateVault(scope, fingerprint, envelopes)`. Fetch the latest scope. New writes must use the new version. Call `migrateVaultBatch(scope, identity)` repeatedly until `rotationStatus(scope).remaining` is zero. Each batch processes at most 50 records, checks the original commitment locally and updates ciphertext using a revision compare-and-swap. The owner must retain the old encryption identities needed to unwrap old versions.
+Create new recipient envelopes for `scope.active_version + 1` using a **fresh** key and call `rotateVault(scope, fingerprint, envelopes)`. Fetch the latest scope. New writes must use the new version. Call `migrateVaultBatch(scope, identity)` repeatedly until `rotationStatus(scope).remaining` is zero. Each batch processes at most five records, checks the original commitment locally and updates ciphertext using a revision compare-and-swap. The owner must retain the old encryption identities needed to unwrap old versions.
 
 Migration preserves IDs, content commitments, release status and the original write retry identity. A stale write or conflicting migration returns 409; refresh before proceeding. Do not delete old backups merely because the count is zero—verify the current data with the new keys and retain a tested recovery plan. Rotation cannot revoke previously downloaded plaintext or keys and does not securely erase old database/backup copies.
 
@@ -75,8 +75,28 @@ npm test --prefix sdk/typescript          # crypto test; HTTP test needs isolate
 
 See [the full system guide](../../docs/TEAM_VAULT_MULTICHAIN.md) for the browser walkthrough and deployment configuration.
 
-### Guided setup and batch rotation
+## Guided agent setup
 
 `setupAgent` atomically registers a personal agent with a label, initial read/write collection permissions and an explicit strict/standard acceptance choice. Supply a UUID `request_id` and current `policy_version`; reuse the identical payload after an uncertain response. It does not grant transfer permissions.
 
-`migrateVaultBatch` now rewraps up to five records locally and submits one signed atomic batch. Scope, active epoch and revision checks remain enforced. Call again while `status.remaining` is nonzero. Each batch requires one API signature; epoch creation/rotation retains its separate manifest signature.
+```ts
+const { policy_version } = await client.listCapabilities();
+const setup = {
+  request_id: crypto.randomUUID(),
+  signing_address: agentAddress, // Public address of the agent, not its private key.
+  label: 'Research',
+  namespace: 'research',
+  operations: ['read', 'write'] as ('read' | 'write')[],
+  acceptance: 'strict' as const,
+  policy_version,
+};
+const registered = await client.setupAgent(setup);
+```
+
+`agentAddress` must be a valid address controlled by the intended agent. Retain `setup` for an exact retry if the result is uncertain. ENS naming is server-configured; the signer does not perform the sponsored ENS transactions. The website's login-session persistence is a dashboard feature, not automatic credential persistence in this SDK.
+
+Use `setAcceptanceRule` with the current policy version to opt an agent/collection into Standard. It accepts only eligible low-risk observations; it does not bypass read/write grants or enable transfers. See [acceptance rules](../../docs/MEMORY_ACCEPTANCE.md).
+
+## Navigation
+
+[Documentation index](../../docs/README.md) · [Local setup](../../docs/LOCAL_RUNBOOK.md) · [ENS registration](../../docs/ENS_AGENT_SETUP.md)

@@ -1,5 +1,6 @@
 "use client";
 import {useEffect, useRef, useState} from "react";
+import EnsRegistrationProgress from "./EnsRegistrationProgress";
 import {signedRequest} from "../lib/gateway.mjs";
 const OWNER_LIMIT = 0.005;
 
@@ -11,6 +12,7 @@ const stages = {
   setup: {step: 0, title: "Preparing separate agent identities", text: "The gateway is registering the browser and finance workers and signing their permissions. These are isolated demo identities."},
   evaluate: {step: 2, title: "MemorySeal is evaluating the website claim", text: "The external text has been submitted to the gateway. We are waiting for its actual decision before passing anything to finance."},
   finance: {step: 4, title: "Finance mistakes a claim for permission", text: "The vulnerable finance worker reads the shared instruction and adopts the website’s 0.05 ETH limit."},
+  ens: {step: 0, title: "Registering and verifying the agents’ ENS names"},
   publish: {step: 3, title: "Publishing the memory proof to Arkiv"},
   recall: {step: 4, title: "Checking what finance can actually read", text: "Finance requests shared memories from the gateway. A withheld claim should not appear in this response."},
   policy: {step: 5, title: "Checking the payment against the owner’s limit", text: "A separate permission check compares 0.05 ETH with the signed 0.005 ETH cap. Memory cannot rewrite this policy."},
@@ -116,12 +118,12 @@ export default function PaymentDemo({api, audience, account, request}) {
       <div className="demo-live-bar"><span className={`demo-live-dot ${running ? "is-live" : ""}`} /><strong>{running ? `RUNNING · CASE ${activeMode === "baseline" ? "01 — WITHOUT MEMORYSEAL" : "02 — WITH MEMORYSEAL"}` : stage === "done" ? "RUN COMPLETE" : stage === "error" ? "RUN STOPPED" : "CHOOSE A CASE TO BEGIN"}</strong>{running && <span>{`${live?.title || "Running"} · ${elapsed}s`}</span>}</div>
       <ol className="demo-journey">{journey.map((name, i) => <li key={name} className={stage === "done" || (live && i < live.step) ? "complete" : live?.step === i ? "current" : ""}><span>{stage === "done" || (live && i < live.step) ? "✓" : `0${i + 1}`}</span>{name}{i < journey.length - 1 && <b aria-hidden="true">→</b>}</li>)}</ol>
       <div className="demo-scenario">
-        <div className="demo-website demo-website-plain"><header><span>Supplier page</span><a href="/demo/supplier.html" target="_blank" rel="noopener noreferrer">Open page ↗</a></header><iframe ref={frame} title="Demo supplier invoice with an untrusted payment instruction" src="/demo/supplier.html" sandbox="allow-same-origin" /></div>
+        <div className="demo-website demo-website-plain"><header><span>Supplier page</span><a href="/demo/supplier.html" target="_blank" rel="noopener noreferrer">Open page ↗</a></header><div className={`demo-plain-scan ${running && stage === "scan" ? "scanning" : ""}`}><iframe ref={frame} title="Demo supplier invoice with an untrusted payment instruction" src="/demo/supplier.html" sandbox="allow-same-origin" />{running && stage === "scan" && <div className="demo-scan-status" role="status"><span className="demo-live-dot is-live" />Scanning supplier page…</div>}</div></div>
         <aside className="demo-live-memory">
           <header><h3>Live memory</h3><span className={`demo-live-dot ${running ? "is-live" : ""}`} /></header>
           <div className="demo-agent-identities">{["browser", "finance"].map(role => {
             const agent = memory[`${role}Agent`];
-            return <div key={role}><span className="demo-eyebrow">{role} AGENT</span><strong>{agent?.label || memory.names?.[role] || "Assigned at start"}</strong><small>{agent ? activeMode === "protected" ? "Registered with gateway" : "Local reference worker" : running ? "Registering…" : "Waiting"}</small>{agent?.address && <code title={agent.address}>{agent.address}</code>}</div>;
+            return <div key={role}><span className="demo-eyebrow">{role} AGENT</span><strong>{agent?.ens_name || agent?.label || memory.names?.[role] || "Assigned at start"}</strong><small>{agent ? agent.id ? "Registered with gateway" : "Local reference worker" : running ? "Registering…" : "Waiting"}</small>{agent?.address && <code title={agent.address}>{agent.address}</code>}{agent?.ens_registration && <EnsRegistrationProgress registration={agent.ens_registration} />}{agent?.ens_name && <a href={`https://explorer.ens.dev/${encodeURIComponent(agent.ens_name)}`} target="_blank" rel="noopener noreferrer">ENS explorer ↗</a>}</div>;
           })}</div>
           <div className="demo-memory-policy"><span>Owner’s payment limit</span><strong>{money(memory.ownerLimit)}</strong></div>
           <section className="demo-memory-entry" aria-live="polite">
