@@ -2414,3 +2414,21 @@ textarea:focus {
 .demo-compact-results { display: flex; flex-wrap: wrap; gap: 18px; }
 .demo-compact-results > div { display: flex; gap: 20px; align-items: center; border: 1px solid #c4c7b8; padding: 12px 16px; font-size: 12px; }
 @media(max-width: 1000px) { .demo-live-memory { border-left: 0; border-top: 1px solid #c8cabc; } }
+.demo-journey { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.demo-agent-identities { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-bottom: 18px; }
+.demo-agent-identities > div { padding: 12px; border: 1px solid var(--ink); background: var(--lavender); min-width: 0; }
+.demo-agent-identities strong, .demo-agent-identities small, .demo-agent-identities code { display: block; margin-top: 7px; overflow-wrap: anywhere; }
+.demo-agent-identities strong { font-size: 14px; }
+.demo-agent-identities small { font-size: 10px; }
+.demo-agent-identities code { font-size: 10px; line-height: 1.5; }
+.demo-proof-body { padding: 14px; }
+.demo-proof-body dl { display: grid; gap: 10px; margin: 0; }
+.demo-proof-body dt { font-size: 10px; color: var(--muted); }
+.demo-proof-body dd { margin: 4px 0 0; font: 11px/1.6 monospace; overflow-wrap: anywhere; }
+.workspace .demo-proof-body p { font-size: 11px; line-height: 1.6; margin: 12px 0 0; }
+.demo-proof-body a { display: inline-block; margin-top: 12px; border: 1px solid var(--ink); padding: 9px 12px; font-size: 12px; background: #fffef8; }
+@media(max-width: 1200px) { .demo-journey { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media(max-width: 650px) { .demo-journey { grid-template-columns: repeat(2,minmax(0,1fr)); } .demo-agent-identities { grid-template-columns: minmax(0,1fr); } }
+
+.demo-theater .demo-website-plain { border: 0; box-shadow: none; }
+.demo-website-plain > header { background: transparent; border: 0; padding: 0 20px 12px; font-size: 12px; color: var(--muted); }

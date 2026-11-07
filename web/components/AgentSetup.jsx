@@ -81,7 +81,6 @@ export default function AgentSetup({ account, version, request, onComplete }) {
         </div>
       </section>
     </fieldset>
-    <p className="muted">Your agent’s ENS name is registered automatically. No ENS transactions to sign.</p>
     <footer className="agent-setup-footer">
 
       <div className="inline">

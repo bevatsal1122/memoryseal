@@ -1,3 +1,4 @@
+import {checkEnsWallet} from "./ens-wallet-check.mjs";
 import {createPublicClient,createWalletClient,custom,parseAbi,encodeFunctionData,toHex,keccak256,stringToHex,zeroAddress} from 'viem';
 import {packetToBytes,normalize} from 'viem/ens';
 import {sepolia} from 'viem/chains';
@@ -11,10 +12,7 @@ const eq=(a,b)=>a?.toLowerCase()===b?.toLowerCase();
 export async function configureSponsor(wallet,owner,config,job,save,progress) {
  const transport=custom(wallet),client=createPublicClient({chain:sepolia,transport});
  const signer=createWalletClient({chain:sepolia,transport,account:owner});
- async function check(){
-  const accounts=await wallet.request({method:'eth_accounts'});
-  if(await client.getChainId()!==11155111||!eq(accounts[0],owner))throw Error('Connect the parent owner wallet on Sepolia.');
- }
+ const check=()=>checkEnsWallet(wallet,owner);
  await check();
  const parent=normalize(config.parent),encoded=toHex(packetToBytes(parent));
  const read=fn=>client.readContract({address:helper,abi:helperAbi,functionName:fn,args:[encoded]});
