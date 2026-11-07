@@ -7,7 +7,7 @@ import {sepolia} from 'viem/chains';
 export const CHAIN_ID = 11155111;
 export const VALUE = parseEther('0.05');
 export const LIMIT = parseEther('0.005');
-export const directory = resolve(basename(process.cwd()) === 'web' ? '..' : '.', '.local-demo');
+export const directory = process.env.MEMORYSEAL_DEMO_DATA_DIR || resolve(basename(process.cwd()) === 'web' ? '..' : '.', '.local-demo');
 
 export function assertLocalRequest(request) {
  const url = new URL(request.url);
@@ -19,7 +19,13 @@ export function assertLocalRequest(request) {
 }
 export async function config() {
  let value;
- try {value=JSON.parse(await readFile(resolve(directory,'wallet.json'),'utf8'));} catch {throw new Error('Run node web/scripts/init-sepolia-demo.mjs first.');}
+ if(process.env.MEMORYSEAL_DEMO_PRIVATE_KEY) {
+  if(!process.env.MEMORYSEAL_DEMO_DATA_DIR)throw new Error('Set a persistent MEMORYSEAL_DEMO_DATA_DIR for hosted signing.');
+  await mkdir(directory,{recursive:true,mode:0o700});
+  value={privateKey:process.env.MEMORYSEAL_DEMO_PRIVATE_KEY,recipient:process.env.MEMORYSEAL_DEMO_RECIPIENT,rpcUrl:process.env.MEMORYSEAL_DEMO_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com'};
+ } else {
+  try {value=JSON.parse(await readFile(resolve(directory,'wallet.json'),'utf8'));} catch {throw new Error('Run node web/scripts/init-sepolia-demo.mjs first.');}
+ }
  const account=privateKeyToAccount(value.privateKey);
  const rpc=new URL(value.rpcUrl);
  if(rpc.protocol!=='https:' && !(['localhost','127.0.0.1'].includes(rpc.hostname) && rpc.protocol==='http:')) throw new Error('Invalid demo RPC configuration.');

@@ -431,7 +431,7 @@ function DashboardSession({ signal }) {
                 mode={view === "teams" ? "teams" : "vault"}
               />
             </div>
-            {view === "demo" && <PaymentDemo key={account} api={api} audience={audience} />}
+            {view === "demo" && <PaymentDemo key={account} api={api} audience={audience} account={account} request={request} />}
             <div hidden={view !== "workbench"}>
               <AgentWorkbench
                 account={account}

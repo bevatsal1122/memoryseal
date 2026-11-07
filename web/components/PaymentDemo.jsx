@@ -1,5 +1,6 @@
 "use client";
 import {useEffect, useRef, useState} from "react";
+import {signedRequest} from "../lib/gateway.mjs";
 const OWNER_LIMIT = 0.005;
 
 const stages = {
@@ -18,7 +19,7 @@ const stages = {
 const journey = ["Agent setup", "Read website", "Memory write", "Arkiv proof", "Finance read", "Payment"];
 const blank = () => ({events: [], result: null, error: "", running: false, memory: {ownerLimit: OWNER_LIMIT, effectiveLimit: OWNER_LIMIT, draft: null, writeStatus: "empty", finance: null}});
 const money = amount => `${amount} ETH`;
-export default function PaymentDemo({api, audience}) {
+export default function PaymentDemo({api, audience, account, request}) {
   const [runs, setRuns] = useState({baseline: blank(), protected: blank()});
   const [running, setRunning] = useState(null);
   const controller = useRef(null);
@@ -29,8 +30,9 @@ export default function PaymentDemo({api, audience}) {
   const [elapsed, setElapsed] = useState(0);
   const [wallet, setWallet] = useState(null);
   const [walletError, setWalletError] = useState("");
+  const hosted = () => !["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
   async function refreshWallet() {
-    try {const response=await fetch("/api/demo/wallet",{cache:"no-store"});const value=await response.json();if(!response.ok)throw new Error(value.error);setWallet(value);setWalletError("");}
+    try {let value; if(hosted()) {value=await request(account,"GET","/demo/wallet");} else {const response=await fetch("/api/demo/wallet",{cache:"no-store"});value=await response.json();if(!response.ok)throw new Error(value.error);} setWallet(value);setWalletError("");}
     catch(error){setWalletError(error.message || "Wallet status unavailable.");}
   }
   useEffect(() => {refreshWallet();}, []);
@@ -58,7 +60,10 @@ export default function PaymentDemo({api, audience}) {
     theater.current?.scrollIntoView({behavior: "smooth", block: "start"});
     update(mode, {...blank(), running: true});
     try {
-      const response = await fetch("/api/demo/run", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode,runId:crypto.randomUUID()}),signal:abort.signal});
+      const payload={mode,runId:crypto.randomUUID()};
+      const response = hosted()
+        ? await signedRequest({account,method:"POST",path:"/demo/run",payload,api,audience,wallet:window.ethereum,signal:abort.signal,rawResponse:true})
+        : await fetch("/api/demo/run", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),signal:abort.signal});
       if(!response.ok) {const error=await response.json();throw new Error(error.error || "Could not start the demo.");}
       const reader=response.body.getReader(), decoder=new TextDecoder();
       let pending="", completed=false;
@@ -96,7 +101,7 @@ export default function PaymentDemo({api, audience}) {
   return <section className="payment-demo">
     <div className="demo-intro"><div><h2>Watch the memory change.</h2></div></div>
     <div className="demo-wallet-status">
-      <div><span className="demo-eyebrow">FINANCE WALLET · SEPOLIA</span><code>{wallet?.address || "Loading wallet…"}</code><small>{wallet ? `${wallet.balance} ETH balance` : walletError}</small></div>
+      <div><span className="demo-eyebrow">FINANCE WALLET · SEPOLIA</span><code>{wallet?.address || (walletError ? "Wallet unavailable" : "Loading wallet…")}</code><small>{wallet ? `${wallet.balance} ETH balance` : walletError}</small></div>
       <div><span className="demo-eyebrow">RECEIVING ADDRESS</span><code>{wallet?.recipient || "Not configured yet"}</code><small>Unprotected run sends 0.05 Sepolia ETH plus gas.</small></div>
       <button disabled={!!running} onClick={refreshWallet}>Check wallet</button>
       {walletError && wallet && <p className="demo-error">{walletError}</p>}

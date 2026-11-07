@@ -35,3 +35,19 @@ test("signed requests do not follow gateway redirects", async () => {
     assert.deepEqual(response, { agents: [] });
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test("signed streaming requests return the authenticated raw response", async () => {
+  const originalFetch = globalThis.fetch;
+  const streamed = new Response('{"type":"stage","value":"setup"}\n', {headers: {'Content-Type':'application/x-ndjson'}});
+  try {
+    globalThis.fetch = async (url, options) => {
+      assert.equal(options.method, 'POST');
+      assert.equal(options.body, JSON.stringify({mode:'protected'}));
+      assert.equal(options.headers['X-Memoryseal-Signature'], '0xsigned');
+      return streamed;
+    };
+    const result=await signedRequest({account:'0x1',method:'POST',path:'/demo/run',payload:{mode:'protected'},api:'https://gateway.example',audience:'test',wallet:{request:async()=> '0xsigned'},rawResponse:true});
+    assert.equal(result,streamed);
+    assert.match(await result.text(),/setup/);
+  } finally {globalThis.fetch=originalFetch;}
+});

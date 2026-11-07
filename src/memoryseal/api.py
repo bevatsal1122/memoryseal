@@ -24,6 +24,7 @@ from memoryseal import (
 )
 from memoryseal.attested_transport import verifier_configured
 from memoryseal.auth import authenticate
+from memoryseal.demo.hosted import router as demo_router
 from memoryseal.bridge_transport import bridge_configured
 from memoryseal.config import settings
 from memoryseal.cors import dashboard_origins
@@ -85,6 +86,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="MemorySeal Gateway", version="0.1.0", lifespan=lifespan)
+app.include_router(demo_router)
 app.add_middleware(RequestBodyLimit)
 app.add_middleware(
     CORSMiddleware,

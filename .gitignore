@@ -22,3 +22,4 @@ sdk/typescript/dist/
 
 # Server-only Sepolia demo wallet and transaction journal
 .local-demo/
+.env.railway-demo
