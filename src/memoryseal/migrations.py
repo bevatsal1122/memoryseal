@@ -6,7 +6,7 @@ from sqlalchemy.engine import Engine
 from memoryseal.db import Base
 
 # Version 13 adds guided setup receipts, agent labels, and durable publication scheduling.
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 
 def migrate(engine: Engine) -> None:

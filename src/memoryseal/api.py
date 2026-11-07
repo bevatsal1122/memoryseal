@@ -43,6 +43,8 @@ from memoryseal.onchain import OnchainReceiptVerifier, RpcError
 from memoryseal.onchain_deployment import observe_deployment
 from memoryseal.outbox_worker import observe_published, publish_one, reconcile_one
 from memoryseal.policy import evaluate
+from memoryseal.ens_registration import enqueue as enqueue_ens, public_status as ens_status
+from memoryseal.models import EnsRegistrationJob
 from memoryseal.request_limits import RequestBodyLimit
 from memoryseal.response_privacy import NoStoreResponses
 from memoryseal.token_balance_observer import observe_balance_delta
@@ -54,6 +56,7 @@ from memoryseal.zero_g_verification import valid_pins
 async def lifespan(_app: FastAPI):
     migrate(engine)
     worker = None
+    ens_worker = None
     if (
         settings.auto_publish
         and settings.arkiv_private_key
@@ -64,9 +67,17 @@ async def lifespan(_app: FastAPI):
 
         worker = PublicationLoop(SessionLocal, engine.url.database)
         worker.start()
+    if settings.ens_auto_register and settings.ens_registrar_private_key and engine.url.database not in (None, ":memory:"):
+        from memoryseal.db import SessionLocal
+        from memoryseal.ens_registration import EnsRegistrationLoop
+        ens_worker = EnsRegistrationLoop(SessionLocal, engine.url.database)
+        ens_worker.start()
     try:
         yield
     finally:
+        if ens_worker:
+            import asyncio
+            await asyncio.to_thread(ens_worker.stop)
         if worker:
             import asyncio
 
@@ -195,6 +206,7 @@ def register_agent(
 ):
     if data.policy_chain_id is not None:
         network(data.policy_chain_id)
+    session.execute(text("BEGIN IMMEDIATE"))
     agent = Agent(
         policy_chain_id=data.policy_chain_id,
         id=str(uuid4()),
@@ -211,6 +223,8 @@ def register_agent(
             .values(owner_address=owner, version=0)
             .on_conflict_do_nothing(index_elements=["owner_address"])
         )
+        session.flush()
+        enqueue_ens(session, agent)
         session.commit()
     except IntegrityError as exc:
         session.rollback()
@@ -240,6 +254,7 @@ def list_agents(
                 "id": agent.id,
                 "signing_address": agent.signing_address,
                 "ens_name": agent.ens_name,
+                "ens_registration": ens_status(session.get(EnsRegistrationJob, agent.id)),
                 "label": agent.label,
                 "policy_chain_id": agent.policy_chain_id,
                 "ens_verified": False,
@@ -298,6 +313,7 @@ def agent_access(
                 "owner_address": agent.owner_address,
                 "signing_address": agent.signing_address,
                 "ens_name": agent.ens_name,
+                "ens_registration": ens_status(session.get(EnsRegistrationJob, agent.id)),
                 "label": agent.label,
                 "policy_chain_id": agent.policy_chain_id,
                 "revoked": agent.revoked,
@@ -1091,6 +1107,7 @@ def advance_policy(session: Session, owner: str) -> int:
 
 
 class AgentSetup(AgentRegistration):
+    sponsored_ens: bool = False
     request_id: UUID
     namespace: str = Field(min_length=1, max_length=128)
     operations: list[Literal["read", "write"]] = Field(min_length=1, max_length=2)
@@ -1105,6 +1122,9 @@ def setup_agent(
     session: Annotated[Session, Depends(get_session)],
 ):
     from memoryseal.models import SetupReceipt
+
+    if data.sponsored_ens and not settings.ens_auto_register:
+        raise HTTPException(503, "Automatic ENS registration is not enabled yet")
 
     if data.namespace != data.namespace.strip() or data.namespace == "*":
         raise HTTPException(422, "an exact collection is required")
@@ -1141,6 +1161,7 @@ def setup_agent(
     )
     session.add(agent)
     session.flush()
+    ens_job = enqueue_ens(session, agent)
     version = advance_policy(session, owner)
     for operation in data.operations:
         session.add(
@@ -1171,7 +1192,8 @@ def setup_agent(
             policy_version=version,
         )
     )
-    result = {"id": agent.id, "policy_version": version}
+    session.flush()
+    result = {"id": agent.id, "policy_version": version, "ens_registration": ens_status(ens_job)}
     session.add(
         SetupReceipt(
             owner_address=owner,
@@ -1512,3 +1534,12 @@ app.include_router(vault_router)
 from memoryseal.browser_sessions import router as browser_session_router
 
 app.include_router(browser_session_router)
+
+
+@app.get("/ens-registration/config")
+def ens_registration_config(owner: Annotated[str, Depends(authenticate)]):
+    from eth_account import Account
+    return {"enabled": settings.ens_auto_register, "parent": settings.ens_parent,
+            "chain_id": 11155111,
+            "registrar": Account.from_key(settings.ens_registrar_private_key.get_secret_value()).address
+            if settings.ens_registrar_private_key else None}

@@ -13,6 +13,7 @@ import Brand from "../components/design/Brand";
 import NavIcon from "../components/design/NavIcon";
 import MemoryMap from "../components/MemoryMap";
 import ActivityFeed from "../components/ActivityFeed";
+import PaymentDemo from "../components/PaymentDemo";
 import AgentSetup from "../components/AgentSetup";
 import AgentCard from "../components/AgentCard";
 import MemoryEvidence from "../components/MemoryProof";
@@ -233,6 +234,11 @@ function DashboardSession({ signal }) {
       setBusy(false);
     }
   }
+  useEffect(() => {
+    if (!account || !data?.agents?.some(a => ["queued", "registering"].includes(a.ens_registration?.state))) return;
+    const timer = setTimeout(() => {request(account, "GET", "/agents", undefined, false).then(result => setData(current => ({...current, agents: result.agents}))).catch(() => {});}, 10000);
+    return () => clearTimeout(timer);
+  }, [account, data]);
   async function refresh(owner, allowLogin = true) {
     // Read requests share the browser login session.
     const [agents, capabilities, memories, events, summary] = await Promise.all([
@@ -327,6 +333,7 @@ function DashboardSession({ signal }) {
     ["vault", "Encrypted vault"],
     ["activity", "Activity"],
     ["workbench", "Playground"],
+    ["demo", "Demo"],
     ["settings", "Settings"],
   ];
   const activeAgents = data?.agents.filter((a) => !a.revoked).length || 0;
@@ -416,6 +423,7 @@ function DashboardSession({ signal }) {
                 mode={view === "teams" ? "teams" : "vault"}
               />
             </div>
+            {view === "demo" && <PaymentDemo key={account} api={api} audience={audience} />}
             <div hidden={view !== "workbench"}>
               <AgentWorkbench
                 account={account}

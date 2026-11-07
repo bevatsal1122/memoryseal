@@ -21,6 +21,11 @@ export default function AgentCard({ agent, capabilities, observation, busy, onCh
       <div><dt>Permissions</dt><dd>{grants.length}</dd></div>
       <div><dt>Collections</dt><dd>{collections.length}</dd></div>
     </dl>
+    {agent.ens_registration && <div className="detail" role="status">
+      <b>{agent.ens_registration.name}</b>
+      <p>{agent.ens_registration.state === "registered" ? "ENS registered on Sepolia" : agent.ens_registration.message || `ENS ${agent.ens_registration.state} · ${agent.ens_registration.step}`}</p>
+      {agent.ens_registration.transactions.map((hash,i) => <a key={hash} href={`https://sepolia.etherscan.io/tx/${hash}`} target="_blank" rel="noreferrer">Transaction {i+1} ↗ </a>)}
+    </div>}
     <details className="agent-record-details" onToggle={e => {
       if (e.target === e.currentTarget && e.currentTarget.open && agent.ens_name && !observation) onCheckEns();
     }}>

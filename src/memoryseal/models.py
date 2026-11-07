@@ -236,3 +236,19 @@ class SetupReceipt(Base):
     request_id: Mapped[str] = mapped_column(String, primary_key=True)
     digest: Mapped[str] = mapped_column(String)
     result_json: Mapped[str] = mapped_column(String)
+
+
+class EnsRegistrationJob(Base):
+    __tablename__ = "ens_registration_jobs"
+    agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"), primary_key=True)
+    owner_address: Mapped[str] = mapped_column(String, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True)
+    state: Mapped[str] = mapped_column(String, default="queued")
+    context_json: Mapped[str] = mapped_column(String, default="{}")
+    signed_transaction: Mapped[str | None] = mapped_column(String, nullable=True)
+    transaction_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    stage: Mapped[int] = mapped_column(Integer, default=0)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    next_check_at: Mapped[int] = mapped_column(Integer, default=0)
+    message: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

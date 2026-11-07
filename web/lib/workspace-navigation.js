@@ -9,6 +9,7 @@ const views = new Set([
   "vault",
   "activity",
   "workbench",
+  "demo",
   "settings",
 ]);
 export function useWorkspaceNavigation() {

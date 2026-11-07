@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     arkiv_access_key: SecretStr | None = None
     ens_rpc_url: str | None = None
     ens_network: str | None = None
+    ens_auto_register: bool = False
+    ens_registrar_private_key: SecretStr | None = None
+    ens_parent: str = "memoryseal.eth"
+    ens_registration_per_owner_day: int = Field(default=5, ge=1, le=100)
+    ens_registration_global_day: int = Field(default=50, ge=1, le=1000)
+    ens_registration_max_fee_gwei: int = Field(default=20, ge=1, le=100)
+
 
 
 settings = Settings()
